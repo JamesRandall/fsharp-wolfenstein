@@ -1,0 +1,310 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="OpenGl\BufferObject.fs" />
+        <Compile Include="OpenGl\VertexArrayObject.fs" />
+        <Compile Include="OpenGl\Shader.fs" />
+        <Compile Include="OpenGl\Texture.fs" />
+        <Compile Include="OpenGl\SpriteRenderer.fs" />
+        <Compile Include="JsBridge.fs" />
+        <Compile Include="Model.Platform.fs" />
+        <Compile Include="..\browser\src\Model.fs">
+          <Link>Model.fs</Link>
+        </Compile>
+        <Compile Include="..\browser\src\Assets.fs">
+          <Link>Assets.fs</Link>
+        </Compile>
+        <Compile Include="Utils.fs" />
+        <Compile Include="..\browser\src\Graphics.Common.fs">
+          <Link>Graphics.Common.fs</Link>
+        </Compile>
+        <Compile Include="Graphics.fs" />
+        <Compile Include="Audio.fs" />
+        <Compile Include="..\browser\src\CrossPlatform\Ray.fs">
+          <Link>Ray.fs</Link>
+        </Compile>
+        <Compile Include="..\browser\src\CrossPlatform\Compression.fs">
+          <Link>Compression.fs</Link>
+        </Compile>
+        <Compile Include="..\browser\src\CrossPlatform\Map.fs">
+          <Link>Map.fs</Link>
+        </Compile>
+        <Compile Include="..\browser\src\CrossPlatform\AI.fs">
+          <Link>AI.fs</Link>
+        </Compile>
+        <Compile Include="..\browser\src\CrossPlatform\Update.fs">
+          <Link>Update.fs</Link>
+        </Compile>
+        <Compile Include="..\browser\src\CrossPlatform\Render.fs">
+          <Link>Render.fs</Link>
+        </Compile>
+        <Compile Include="..\browser\src\CrossPlatform\Game.fs">
+          <Link>Game.fs</Link>
+        </Compile>
+        <Compile Include="Program.fs" />
+        <Content Include="Shaders\shader.vert">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Shaders\shader.frag">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Shaders\sprite.frag">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Shaders\sprite.vert">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Fonts\8-bit-hud.ttf">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <EmbeddedResource Include="Assets\GAMEMAPS.WL1" />
+        <EmbeddedResource Include="Assets\MAPHEAD.WL1" />
+        <EmbeddedResource Include="Assets\VSWAP.WL1" />
+        <EmbeddedResource Include="Assets\Sprites\s0.png" />
+        <EmbeddedResource Include="Assets\Sprites\s1.png" />
+        <EmbeddedResource Include="Assets\Sprites\s2.png" />
+        <EmbeddedResource Include="Assets\Sprites\s3.png" />
+        <EmbeddedResource Include="Assets\Sprites\s4.png" />
+        <EmbeddedResource Include="Assets\Sprites\s5.png" />
+        <EmbeddedResource Include="Assets\Sprites\s6.png" />
+        <EmbeddedResource Include="Assets\Sprites\s7.png" />
+        <EmbeddedResource Include="Assets\Sprites\s8.png" />
+        <EmbeddedResource Include="Assets\Sprites\s9.png" />
+        <EmbeddedResource Include="Assets\Sprites\s10.png" />
+        <EmbeddedResource Include="Assets\Sprites\s11.png" />
+        <EmbeddedResource Include="Assets\Sprites\s12.png" />
+        <EmbeddedResource Include="Assets\Sprites\s13.png" />
+        <EmbeddedResource Include="Assets\Sprites\s14.png" />
+        <EmbeddedResource Include="Assets\Sprites\s15.png" />
+        <EmbeddedResource Include="Assets\Sprites\s16.png" />
+        <EmbeddedResource Include="Assets\Sprites\s17.png" />
+        <EmbeddedResource Include="Assets\Sprites\s18.png" />
+        <EmbeddedResource Include="Assets\Sprites\s19.png" />
+        <EmbeddedResource Include="Assets\Sprites\s20.png" />
+        <EmbeddedResource Include="Assets\Sprites\s21.png" />
+        <EmbeddedResource Include="Assets\Sprites\s22.png" />
+        <EmbeddedResource Include="Assets\Sprites\s23.png" />
+        <EmbeddedResource Include="Assets\Sprites\s24.png" />
+        <EmbeddedResource Include="Assets\Sprites\s25.png" />
+        <EmbeddedResource Include="Assets\Sprites\s26.png" />
+        <EmbeddedResource Include="Assets\Sprites\s27.png" />
+        <EmbeddedResource Include="Assets\Sprites\s28.png" />
+        <EmbeddedResource Include="Assets\Sprites\s29.png" />
+        <EmbeddedResource Include="Assets\Sprites\s30.png" />
+        <EmbeddedResource Include="Assets\Sprites\s31.png" />
+        <EmbeddedResource Include="Assets\Sprites\s32.png" />
+        <EmbeddedResource Include="Assets\Sprites\s33.png" />
+        <EmbeddedResource Include="Assets\Sprites\s34.png" />
+        <EmbeddedResource Include="Assets\Sprites\s35.png" />
+        <EmbeddedResource Include="Assets\Sprites\s36.png" />
+        <EmbeddedResource Include="Assets\Sprites\s37.png" />
+        <EmbeddedResource Include="Assets\Sprites\s38.png" />
+        <EmbeddedResource Include="Assets\Sprites\s39.png" />
+        <EmbeddedResource Include="Assets\Sprites\s40.png" />
+        <EmbeddedResource Include="Assets\Sprites\s41.png" />
+        <EmbeddedResource Include="Assets\Sprites\s42.png" />
+        <EmbeddedResource Include="Assets\Sprites\s43.png" />
+        <EmbeddedResource Include="Assets\Sprites\s44.png" />
+        <EmbeddedResource Include="Assets\Sprites\s45.png" />
+        <EmbeddedResource Include="Assets\Sprites\s46.png" />
+        <EmbeddedResource Include="Assets\Sprites\s47.png" />
+        <EmbeddedResource Include="Assets\Sprites\s48.png" />
+        <EmbeddedResource Include="Assets\Sprites\s49.png" />
+        <EmbeddedResource Include="Assets\Sprites\s50.png" />
+        <EmbeddedResource Include="Assets\Sprites\s51.png" />
+        <EmbeddedResource Include="Assets\Sprites\s52.png" />
+        <EmbeddedResource Include="Assets\Sprites\s53.png" />
+        <EmbeddedResource Include="Assets\Sprites\s54.png" />
+        <EmbeddedResource Include="Assets\Sprites\s55.png" />
+        <EmbeddedResource Include="Assets\Sprites\s56.png" />
+        <EmbeddedResource Include="Assets\Sprites\s57.png" />
+        <EmbeddedResource Include="Assets\Sprites\s58.png" />
+        <EmbeddedResource Include="Assets\Sprites\s59.png" />
+        <EmbeddedResource Include="Assets\Sprites\s60.png" />
+        <EmbeddedResource Include="Assets\Sprites\s61.png" />
+        <EmbeddedResource Include="Assets\Sprites\s62.png" />
+        <EmbeddedResource Include="Assets\Sprites\s63.png" />
+        <EmbeddedResource Include="Assets\Sprites\s64.png" />
+        <EmbeddedResource Include="Assets\Sprites\s65.png" />
+        <EmbeddedResource Include="Assets\Sprites\s66.png" />
+        <EmbeddedResource Include="Assets\Sprites\s67.png" />
+        <EmbeddedResource Include="Assets\Sprites\s68.png" />
+        <EmbeddedResource Include="Assets\Sprites\s69.png" />
+        <EmbeddedResource Include="Assets\Sprites\s70.png" />
+        <EmbeddedResource Include="Assets\Sprites\s71.png" />
+        <EmbeddedResource Include="Assets\Sprites\s72.png" />
+        <EmbeddedResource Include="Assets\Sprites\s73.png" />
+        <EmbeddedResource Include="Assets\Sprites\s74.png" />
+        <EmbeddedResource Include="Assets\Sprites\s75.png" />
+        <EmbeddedResource Include="Assets\Sprites\s76.png" />
+        <EmbeddedResource Include="Assets\Sprites\s77.png" />
+        <EmbeddedResource Include="Assets\Sprites\s78.png" />
+        <EmbeddedResource Include="Assets\Sprites\s79.png" />
+        <EmbeddedResource Include="Assets\Sprites\s80.png" />
+        <EmbeddedResource Include="Assets\Sprites\s81.png" />
+        <EmbeddedResource Include="Assets\Sprites\s82.png" />
+        <EmbeddedResource Include="Assets\Sprites\s83.png" />
+        <EmbeddedResource Include="Assets\Sprites\s84.png" />
+        <EmbeddedResource Include="Assets\Sprites\s85.png" />
+        <EmbeddedResource Include="Assets\Sprites\s86.png" />
+        <EmbeddedResource Include="Assets\Sprites\s87.png" />
+        <EmbeddedResource Include="Assets\Sprites\s88.png" />
+        <EmbeddedResource Include="Assets\Sprites\s89.png" />
+        <EmbeddedResource Include="Assets\Sprites\s90.png" />
+        <EmbeddedResource Include="Assets\Sprites\s91.png" />
+        <EmbeddedResource Include="Assets\Sprites\s92.png" />
+        <EmbeddedResource Include="Assets\Sprites\s93.png" />
+        <EmbeddedResource Include="Assets\Sprites\s94.png" />
+        <EmbeddedResource Include="Assets\Sprites\s95.png" />
+        <EmbeddedResource Include="Assets\Sprites\s96.png" />
+        <EmbeddedResource Include="Assets\Sprites\s97.png" />
+        <EmbeddedResource Include="Assets\Sprites\s98.png" />
+        <EmbeddedResource Include="Assets\Sprites\s99.png" />
+        <EmbeddedResource Include="Assets\Sprites\s100.png" />
+        <EmbeddedResource Include="Assets\Sprites\s101.png" />
+        <EmbeddedResource Include="Assets\Sprites\s102.png" />
+        <EmbeddedResource Include="Assets\Sprites\s103.png" />
+        <EmbeddedResource Include="Assets\Sprites\s104.png" />
+        <EmbeddedResource Include="Assets\Sprites\s105.png" />
+        <EmbeddedResource Include="Assets\Sprites\s106.png" />
+        <EmbeddedResource Include="Assets\Sprites\s107.png" />
+        <EmbeddedResource Include="Assets\Sprites\s108.png" />
+        <EmbeddedResource Include="Assets\Sprites\s109.png" />
+        <EmbeddedResource Include="Assets\Sprites\s110.png" />
+        <EmbeddedResource Include="Assets\Sprites\s111.png" />
+        <EmbeddedResource Include="Assets\Sprites\s112.png" />
+        <EmbeddedResource Include="Assets\Sprites\s113.png" />
+        <EmbeddedResource Include="Assets\Sprites\s114.png" />
+        <EmbeddedResource Include="Assets\Sprites\s115.png" />
+        <EmbeddedResource Include="Assets\Sprites\s116.png" />
+        <EmbeddedResource Include="Assets\Sprites\s117.png" />
+        <EmbeddedResource Include="Assets\Sprites\s118.png" />
+        <EmbeddedResource Include="Assets\Sprites\s119.png" />
+        <EmbeddedResource Include="Assets\Sprites\s120.png" />
+        <EmbeddedResource Include="Assets\Sprites\s121.png" />
+        <EmbeddedResource Include="Assets\Sprites\s122.png" />
+        <EmbeddedResource Include="Assets\Sprites\s123.png" />
+        <EmbeddedResource Include="Assets\Sprites\s124.png" />
+        <EmbeddedResource Include="Assets\Sprites\s125.png" />
+        <EmbeddedResource Include="Assets\Sprites\s126.png" />
+        <EmbeddedResource Include="Assets\Sprites\s127.png" />
+        <EmbeddedResource Include="Assets\Sprites\s128.png" />
+        <EmbeddedResource Include="Assets\Sprites\s129.png" />
+        <EmbeddedResource Include="Assets\Sprites\s130.png" />
+        <EmbeddedResource Include="Assets\Sprites\s131.png" />
+        <EmbeddedResource Include="Assets\Sprites\s132.png" />
+        <EmbeddedResource Include="Assets\Sprites\s133.png" />
+        <EmbeddedResource Include="Assets\Sprites\s134.png" />
+        <EmbeddedResource Include="Assets\Sprites\s135.png" />
+        <EmbeddedResource Include="Assets\Sprites\s136.png" />
+        <EmbeddedResource Include="Assets\Sprites\s137.png" />
+        <EmbeddedResource Include="Assets\Sprites\s138.png" />
+        <EmbeddedResource Include="Assets\Sprites\s139.png" />
+        <EmbeddedResource Include="Assets\Sprites\s140.png" />
+        <EmbeddedResource Include="Assets\Sprites\s141.png" />
+        <EmbeddedResource Include="Assets\Sprites\s142.png" />
+        <EmbeddedResource Include="Assets\Sprites\s143.png" />
+        <EmbeddedResource Include="Assets\Sprites\s144.png" />
+        <EmbeddedResource Include="Assets\Sprites\s145.png" />
+        <EmbeddedResource Include="Assets\Sprites\s146.png" />
+        <EmbeddedResource Include="Assets\Sprites\s147.png" />
+        <EmbeddedResource Include="Assets\Sprites\s148.png" />
+        <EmbeddedResource Include="Assets\Sprites\s149.png" />
+        <EmbeddedResource Include="Assets\Sprites\s150.png" />
+        <EmbeddedResource Include="Assets\Sprites\s151.png" />
+        <EmbeddedResource Include="Assets\Sprites\s152.png" />
+        <EmbeddedResource Include="Assets\Sprites\s153.png" />
+        <EmbeddedResource Include="Assets\Sprites\s154.png" />
+        <EmbeddedResource Include="Assets\Sprites\s155.png" />
+        <EmbeddedResource Include="Assets\Sprites\s156.png" />
+        <EmbeddedResource Include="Assets\Sprites\s157.png" />
+        <EmbeddedResource Include="Assets\Sprites\s158.png" />
+        <EmbeddedResource Include="Assets\Sprites\s159.png" />
+        <EmbeddedResource Include="Assets\Sprites\s160.png" />
+        <EmbeddedResource Include="Assets\Sprites\s161.png" />
+        <EmbeddedResource Include="Assets\Sprites\s162.png" />
+        <EmbeddedResource Include="Assets\Sprites\s163.png" />
+        <EmbeddedResource Include="Assets\Sprites\s164.png" />
+        <EmbeddedResource Include="Assets\Sprites\s165.png" />
+        <EmbeddedResource Include="Assets\Sprites\s166.png" />
+        <EmbeddedResource Include="Assets\Sprites\s167.png" />
+        <EmbeddedResource Include="Assets\Sprites\s168.png" />
+        <EmbeddedResource Include="Assets\Sprites\s169.png" />
+        <EmbeddedResource Include="Assets\Sprites\s170.png" />
+        <EmbeddedResource Include="Assets\Sprites\s171.png" />
+        <EmbeddedResource Include="Assets\Sprites\s172.png" />
+        <EmbeddedResource Include="Assets\Sprites\s173.png" />
+        <EmbeddedResource Include="Assets\Sprites\s174.png" />
+        <EmbeddedResource Include="Assets\Sprites\s175.png" />
+        <EmbeddedResource Include="Assets\Sprites\s176.png" />
+        <EmbeddedResource Include="Assets\Sprites\s177.png" />
+        <EmbeddedResource Include="Assets\Sprites\s178.png" />
+        <EmbeddedResource Include="Assets\Sprites\s179.png" />
+        <EmbeddedResource Include="Assets\Sprites\s180.png" />
+        <EmbeddedResource Include="Assets\Sprites\s181.png" />
+        <EmbeddedResource Include="Assets\Sprites\s182.png" />
+        <EmbeddedResource Include="Assets\Sprites\s183.png" />
+        <EmbeddedResource Include="Assets\Sprites\s184.png" />
+        <EmbeddedResource Include="Assets\Sprites\s185.png" />
+        <EmbeddedResource Include="Assets\Sprites\s186.png" />
+        <EmbeddedResource Include="Assets\Sprites\s296.png" />
+        <EmbeddedResource Include="Assets\Sprites\s297.png" />
+        <EmbeddedResource Include="Assets\Sprites\s298.png" />
+        <EmbeddedResource Include="Assets\Sprites\s299.png" />
+        <EmbeddedResource Include="Assets\Sprites\s300.png" />
+        <EmbeddedResource Include="Assets\Sprites\s301.png" />
+        <EmbeddedResource Include="Assets\Sprites\s302.png" />
+        <EmbeddedResource Include="Assets\Sprites\s303.png" />
+        <EmbeddedResource Include="Assets\Sprites\s304.png" />
+        <EmbeddedResource Include="Assets\Sprites\s305.png" />
+        <EmbeddedResource Include="Assets\Sprites\s306.png" />
+        <EmbeddedResource Include="Assets\Sprites\s408.png" />
+        <EmbeddedResource Include="Assets\Sprites\s409.png" />
+        <EmbeddedResource Include="Assets\Sprites\s410.png" />
+        <EmbeddedResource Include="Assets\Sprites\s411.png" />
+        <EmbeddedResource Include="Assets\Sprites\s412.png" />
+        <EmbeddedResource Include="Assets\Sprites\s413.png" />
+        <EmbeddedResource Include="Assets\Sprites\s414.png" />
+        <EmbeddedResource Include="Assets\Sprites\s415.png" />
+        <EmbeddedResource Include="Assets\Sprites\s416.png" />
+        <EmbeddedResource Include="Assets\Sprites\s417.png" />
+        <EmbeddedResource Include="Assets\Sprites\s418.png" />
+        <EmbeddedResource Include="Assets\Sprites\s419.png" />
+        <EmbeddedResource Include="Assets\Sprites\s420.png" />
+        <EmbeddedResource Include="Assets\Sprites\s421.png" />
+        <EmbeddedResource Include="Assets\Sprites\s422.png" />
+        <EmbeddedResource Include="Assets\Sprites\s423.png" />
+        <EmbeddedResource Include="Assets\Sprites\s424.png" />
+        <EmbeddedResource Include="Assets\Sprites\s425.png" />
+        <EmbeddedResource Include="Assets\Sprites\s426.png" />
+        <EmbeddedResource Include="Assets\Sprites\s427.png" />
+        <EmbeddedResource Include="Assets\Sprites\s428.png" />
+        <EmbeddedResource Include="Assets\Sprites\s429.png" />
+        <EmbeddedResource Include="Assets\Sprites\s430.png" />
+        <EmbeddedResource Include="Assets\Sprites\s431.png" />
+        <EmbeddedResource Include="Assets\Sprites\s432.png" />
+        <EmbeddedResource Include="Assets\Sprites\s433.png" />
+        <EmbeddedResource Include="Assets\Sprites\s434.png" />
+        <EmbeddedResource Include="Assets\Sprites\s435.png" />
+        <EmbeddedResource Include="Assets\Sounds\Pistol.wav" />
+        <EmbeddedResource Include="Assets\Sounds\Aarrrgh (enemy death).wav" />
+        <EmbeddedResource Include="Assets\Sounds\Aieeee1 (enemy death).wav" />
+        <EmbeddedResource Include="Assets\Sounds\Aieeee2 (enemy death).wav" />
+        <EmbeddedResource Include="Assets\Sounds\DoorClose.wav" />
+        <EmbeddedResource Include="Assets\Sounds\DoorOpen.wav" />
+    </ItemGroup>
+    <ItemGroup>
+      <PackageReference Include="Silk.NET.Input" Version="2.15.0" />
+      <PackageReference Include="Silk.NET.OpenAL" Version="2.15.0" />
+      <PackageReference Include="Silk.NET.OpenGL" Version="2.15.0" />
+      <PackageReference Include="Silk.NET.Windowing" Version="2.15.0" />
+      <PackageReference Include="SixLabors.ImageSharp" Version="1.0.4" />
+      <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta13" />
+    </ItemGroup>
+</Project>

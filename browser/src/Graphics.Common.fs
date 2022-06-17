@@ -1,0 +1,83 @@
+module App.GraphicsCommon
+
+open Fable.Core
+open App.Model
+open App.PlatformModel
+open App
+open System
+
+exception MissingGraphicsPackException
+
+let gamePalette = [|
+  4278190080ul ; 4289200128ul ; 4278233088ul ; 4289243136ul ; 4278190248ul ; 4289200296ul ; 4278211752ul ; 4289243304ul
+  4283716692ul ; 4294726740ul ; 4283759700ul ; 4294769748ul ; 4283716860ul ; 4294726908ul ; 4283759868ul ; 4294769916ul
+  4293717228ul ; 4292664540ul ; 4291875024ul ; 4290822336ul ; 4290032820ul ; 4289243304ul ; 4288190616ul ; 4287401100ul
+  4286348412ul ; 4285558896ul ; 4284769380ul ; 4283716692ul ; 4282927176ul ; 4281874488ul ; 4281084972ul ; 4280295456ul
+  4278190332ul ; 4278190316ul ; 4278190304ul ; 4278190292ul ; 4278190280ul ; 4278190268ul ; 4278190256ul ; 4278190244ul
+  4278190232ul ; 4278190216ul ; 4278190204ul ; 4278190192ul ; 4278190180ul ; 4278190168ul ; 4278190156ul ; 4278190144ul
+  4292401404ul ; 4290296060ul ; 4288453884ul ; 4286348540ul ; 4284243196ul ; 4282401020ul ; 4280295676ul ; 4278190332ul
+  4284262652ul ; 4282423548ul ; 4280322300ul ; 4278221052ul ; 4278217956ul ; 4278214860ul ; 4278211764ul ; 4278209692ul
+  4292410620ul ; 4290313468ul ; 4288478460ul ; 4286381308ul ; 4284283132ul ; 4282447100ul ; 4280349948ul ; 4278252796ul
+  4278245604ul ; 4278240460ul ; 4278234292ul ; 4278230172ul ; 4278224004ul ; 4278217840ul ; 4278211672ul ; 4278206528ul
+  4284284112ul ; 4282449092ul ; 4280351924ul ; 4278254752ul ; 4278248592ul ; 4278242432ul ; 4278236276ul ; 4278230112ul
+  4292410584ul ; 4290313404ul ; 4288478364ul ; 4286381184ul ; 4284284000ul ; 4282448960ul ; 4280351776ul ; 4278254592ul
+  4278254592ul ; 4278250496ul ; 4278247424ul ; 4278244352ul ; 4278241284ul ; 4278238212ul ; 4278235140ul ; 4278232068ul
+  4278228996ul ; 4278224900ul ; 4278221828ul ; 4278218756ul ; 4278215684ul ; 4278212612ul ; 4278209540ul ; 4278206468ul
+  4294769880ul ; 4294769848ul ; 4294769820ul ; 4294507644ul ; 4294769756ul ; 4294769728ul ; 4294769696ul ; 4294769664ul
+  4293190656ul ; 4291611648ul ; 4290032640ul ; 4288453632ul ; 4286874624ul ; 4285558784ul ; 4283979776ul ; 4282400768ul
+  4294753372ul ; 4294750272ul ; 4294748192ul ; 4294745088ul ; 4293168128ul ; 4291591168ul ; 4290014208ul ; 4288437248ul
+  4294760664ul ; 4294753464ul ; 4294745244ul ; 4294738044ul ; 4294729820ul ; 4294721600ul ; 4294714400ul ; 4294706176ul
+  4294705152ul ; 4293656576ul ; 4292870144ul ; 4292083712ul ; 4291297280ul ; 4290510848ul ; 4289724416ul ; 4288937984ul
+  4288151552ul ; 4287102976ul ; 4286316544ul ; 4285530112ul ; 4284743680ul ; 4283957248ul ; 4283170816ul ; 4282384384ul
+  4280821800ul ; 4281655548ul ; 4280603900ul ; 4279815420ul ; 4278763772ul ; 4278236412ul ; 4294713524ul ; 4294705320ul
+  4293132440ul ; 4291559552ul ; 4289986676ul ; 4288413792ul ; 4286840912ul ; 4285530180ul ; 4283957300ul ; 4282384424ul
+  4294760700ul ; 4294752508ul ; 4294745340ul ; 4294737148ul ; 4294728956ul ; 4294721788ul ; 4294713596ul ; 4294705404ul
+  4293132512ul ; 4291559624ul ; 4289986740ul ; 4288413852ul ; 4286840964ul ; 4285530220ul ; 4283957336ul ; 4282384448ul
+  4292667644ul ; 4291879164ul ; 4291090684ul ; 4290565372ul ; 4289776892ul ; 4288988412ul ; 4288462076ul ; 4287674620ul
+  4286623996ul ; 4285572348ul ; 4284521724ul ; 4284257520ul ; 4283993320ul ; 4283730140ul ; 4283465936ul ; 4283202760ul
+  4282939580ul ; 4282675380ul ; 4282411176ul ; 4282148000ul ; 4281884828ul ; 4281621648ul ; 4281358472ul ; 4281094272ul
+  4280831092ul ; 4280567916ul ; 4280303708ul ; 4280040532ul ; 4279777352ul ; 4279775296ul ; 4279512120ul ; 4278984744ul
+  4284743776ul ; 4284769280ul ; 4284506112ul ; 4280025088ul ; 4281073664ul ; 4279247920ul ; 4282908744ul ; 4283433040ul
+  4281597952ul ; 4280032284ul ; 4283190348ul ; 4284243036ul ; 4282400832ul ; 4281348144ul ; 4281611316ul ; 4294243544ul
+  4293454008ul ; 4292664476ul ; 4291348596ul ; 4290822216ul ; 4290032672ul ; 4289769504ul ; 4288979968ul ; 4288190464ul
+  4287400960ul ; 4286874624ul ; 4286348288ul ; 4286085120ul ; 4285821952ul ; 4285558784ul ; 4285295616ul ; 4287103128ul
+|]
+
+let spriteOffsets ((vswapView:JS.DataView),_) spriteIndex =
+  let firstSprite = vswapView.getUint16(2, true)
+  let spriteOffset = vswapView.getUint32(6 + 4 * (int firstSprite + spriteIndex), true)
+  let firstColumnOffset = uint32 (vswapView.getUint16(int spriteOffset, true))
+  let lastColumnOffset = uint32 (vswapView.getUint16(int spriteOffset + 2, true)) 
+  { Offset = spriteOffset
+    FirstColumn = firstColumnOffset
+    LastColumn = lastColumnOffset
+    PixelPoolOffset = spriteOffset + 4ul + (2ul * (lastColumnOffset - firstColumnOffset + 1ul))
+  }
+
+let textureStripOffset (_,wallTextureOffset) textureIndex textureX =
+  // Their is a gap in the textures in the shareware version that we need to adjust for. Basically textures 56 through
+  // 97 are only present in a commercial wl6 pack and not in the shareware wl1 pack but the textures are packed one
+  // after the other
+  let adjustedTextureIndex =
+    if Assets.isShareware && textureIndex >= 98 then 56 + textureIndex - 98 else textureIndex
+  wallTextureOffset + (4096 * adjustedTextureIndex) + (64 * textureX)
+  
+let textureColor (vswapView:Fable.Core.JS.DataView,_) textureOffset textureY =
+  let paletteIndex = vswapView.getUint8 (textureOffset+textureY)
+  gamePalette.[int paletteIndex]
+
+let setPixel (imageData:Texture) (color:UInt32) x y = imageData.setPixel color x y
+
+let getPixel (imageData:Texture) x y = imageData.getPixel x y
+
+let loadGraphics () = async {
+  let! vswapResult = Utils.loadAsset Assets.VSWAP
+  let result =
+    match vswapResult with
+    | Ok vswap ->
+      let vswapView = JS.Constructors.DataView.Create vswap
+      let wallTexturesOffset = vswapView.getUint32(6, true)
+      vswapView,int wallTexturesOffset
+    | Error _ -> raise MissingGraphicsPackException
+  return result
+}
