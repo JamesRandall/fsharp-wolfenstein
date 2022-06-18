@@ -4,6 +4,7 @@
         <OutputType>Exe</OutputType>
         <TargetFramework>net6.0</TargetFramework>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <PublishAot Condition="'$(TargetFramework)' == 'net7.0'">true</PublishAot>
     </PropertyGroup>
 
     <ItemGroup>
@@ -331,5 +332,6 @@
       <PackageReference Include="Silk.NET.Windowing" Version="2.15.0" />
       <PackageReference Include="SixLabors.ImageSharp" Version="1.0.4" />
       <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta13" />
+      <PackageReference Include="Microsoft.Extensions.DependencyModel" Version="6.0.0" />
     </ItemGroup>
 </Project>
