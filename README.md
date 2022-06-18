@@ -32,7 +32,7 @@ I've been using node 16 to compile this. 17 doesn't work at the moment.
 To run the game:
 
 * Navigate to the browser folder
-* Install dependencies: `npm install`
+* Install dependencies: `npm ci`
 * Start the compiler in watch mode and a development server: `npm start`
 * After the first compilation is finished, in your browser open: http://localhost:8080/
 
