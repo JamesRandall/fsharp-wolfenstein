@@ -219,28 +219,31 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
     |> List.fold(fun (innerGame:Game) gameObject ->
       match gameObject with
       | GameObject.Enemy enemy ->
-        match enemy.State,enemy.DirectionVector with
-        | EnemyStateType.Path, Some direction
-        | EnemyStateType.Chase, Some direction ->
-          let maxDistanceToCheck = direction.Normalize().Abs()*rangeToOpenDoorsAt
-          let setup () = false, enemy.BasicGameObject.Position.vX, enemy.BasicGameObject.Position.vY, direction
-          let terminator (isHit, currentRayDistanceX, currentRayDistanceY, mapX, mapY, _) =
-            (not isHit) &&
-            (mapX >= 0 && mapX < game.Map.[0].Length && mapY >= 0 && mapY < game.Map.Length) &&
-            (abs currentRayDistanceX < maxDistanceToCheck.vX || abs currentRayDistanceY < maxDistanceToCheck.vY)
-          let isHit, _, _, _, _, hitMapX, hitMapY, _ = Ray.cast setup terminator game
-          if isHit then
-            match game.Map.[hitMapY].[hitMapX] with
-            | Cell.Door doorIndex ->
-              { innerGame with
-                  Doors =
-                    innerGame.Doors
-                    |> List.mapi (fun i d -> if i = doorIndex then tryOpenDoor innerGame.Doors.[i] else d)
-              }
-            | _ -> innerGame
-          else
-            innerGame
-        | _ -> innerGame
+        match enemy.EnemyType with
+        | EnemyType.Dog -> innerGame // dogs cannot open doors (well mine can, but game dogs can't!)
+        | _ ->
+          match enemy.State,enemy.DirectionVector with
+          | EnemyStateType.Path, Some direction
+          | EnemyStateType.Chase, Some direction ->
+            let maxDistanceToCheck = direction.Normalize().Abs()*rangeToOpenDoorsAt
+            let setup () = false, enemy.BasicGameObject.Position.vX, enemy.BasicGameObject.Position.vY, direction
+            let terminator (isHit, currentRayDistanceX, currentRayDistanceY, mapX, mapY, _) =
+              (not isHit) &&
+              (mapX >= 0 && mapX < game.Map.[0].Length && mapY >= 0 && mapY < game.Map.Length) &&
+              (abs currentRayDistanceX < maxDistanceToCheck.vX || abs currentRayDistanceY < maxDistanceToCheck.vY)
+            let isHit, _, _, _, _, hitMapX, hitMapY, _ = Ray.cast setup terminator game
+            if isHit then
+              match game.Map.[hitMapY].[hitMapX] with
+              | Cell.Door doorIndex ->
+                { innerGame with
+                    Doors =
+                      innerGame.Doors
+                      |> List.mapi (fun i d -> if i = doorIndex then tryOpenDoor innerGame.Doors.[i] else d)
+                }
+              | _ -> innerGame
+            else
+              innerGame
+          | _ -> innerGame
       | _ -> innerGame
     ) game
     

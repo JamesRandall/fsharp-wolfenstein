@@ -28,6 +28,8 @@ module Walls =
       let _, deltaDistX, deltaDistY, totalRayDistanceX, totalRayDistanceY, hitMapX, hitMapY, side =
         Ray.cast setup terminator game
       
+      
+      
       let perpendicularWallDistance =
         match side with
         | Side.NorthSouth -> (totalRayDistanceX - deltaDistX)

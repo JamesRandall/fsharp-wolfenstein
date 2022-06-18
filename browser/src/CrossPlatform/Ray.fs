@@ -42,7 +42,7 @@ let cast setup terminator game =
             currentRayDistanceX, currentRayDistanceY + deltaDistY
         let newIsHit =
           match game.Map.[newMapY].[newMapX] with
-          | Cell.TurningPoint _ -> includeTurningPoints
+          | Cell.TurningPoint _ -> includeTurningPoints // if newMapX <> mapX || newMapY <> mapY then includeTurningPoints else false
           | Cell.Empty -> false
           | Cell.Wall _ -> true
           | Cell.Door doorIndex ->

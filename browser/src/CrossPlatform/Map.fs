@@ -60,6 +60,8 @@ let private getStartingPosition mapSize plane1 =
             // A diagnostic while working on patrolling - puts you in a room facing a guard who is patrolling
             //let startingPosition = { vX = float mapSize - float 38 - 0.5 ; vY = float 36 + 0.5 }
             //let direction = Direction.north
+            let startingPosition = { vX = float mapSize - float 51 - 0.5 ; vY = float 44 + 0.5 }
+            let direction = Direction.east
             
             { Position = startingPosition
               Direction = direction
@@ -165,7 +167,7 @@ let loadLevelFromRawMap (raw:RawMap) =
               elif objectValue = 0x60us then
                 Cell.TurningPoint Direction.south
               elif objectValue = 0x61us then
-                Cell.TurningPoint Direction.east
+                Cell.TurningPoint Direction.southEast
               else
                 Cell.Empty
             row @ [cell], innerDoors
@@ -262,9 +264,10 @@ let loadLevelFromRawMap (raw:RawMap) =
         elif value >= 108us then
           // useful for debugging if you want a single enemy
           // find their location in maped42 and enter the co-ordinates below 
-          //if colIndex = 38 && rowIndex = 33 then
+          //if colIndex = 59 && rowIndex = 44 then
             let enemy =
               // guards
+              // TODO: tidy this up, crying out for a pipeline
               if 108us <= value && value < 116us then
                 guardEnemy colIndex rowIndex (Some ((value-108us) % 4us)) (value |> standingOrMoving 108us) |> Some // level 1
               elif 144us <= value && value < 152us then
@@ -288,10 +291,10 @@ let loadLevelFromRawMap (raw:RawMap) =
                 let deadGuard = guardEnemy colIndex rowIndex (Some ((value-108us) % 4us)) EnemyStateType.Dead 
                 { deadGuard with CurrentAnimationFrame = deadGuard.DeathSpriteIndexes.Length-1 } |> Some
                 
-              elif 134us <= value && value < 138us then
-                dogEnemy colIndex rowIndex (Some ((value-134us) % 4us)) EnemyStateType.Path |> Some
-              elif 170us <= value && value < 174us then
-                dogEnemy colIndex rowIndex (Some ((value-170us) % 4us)) EnemyStateType.Path |> Some
+              elif 138us <= value && value < 142us then
+                dogEnemy colIndex rowIndex (Some ((value-138us) % 4us)) EnemyStateType.Path |> Some
+              elif 174us <= value && value < 178us then
+                dogEnemy colIndex rowIndex (Some ((value-174us) % 4us)) EnemyStateType.Path |> Some
               elif 210us <= value && value < 214us then
                 dogEnemy colIndex rowIndex (Some ((value-210us) % 4us)) EnemyStateType.Path |> Some
                 
@@ -313,7 +316,6 @@ let loadLevelFromRawMap (raw:RawMap) =
                 hansEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
               elif value = 215us then
                 ottoEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
-              
               else
                 None
             enemy |> Option.map (fun e -> e |> GameObject.Enemy)

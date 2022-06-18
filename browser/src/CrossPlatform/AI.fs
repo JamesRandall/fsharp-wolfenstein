@@ -83,24 +83,51 @@ let updateBasedOnCurrentState (frameTime:float<ms>) game enemy =
     // As a fail safe if we don't hit a turning point we simply reverse the direction
     let newPosition = enemy.BasicGameObject.Position + (direction * (frameTime / 1000.<ms> * enemyVelocityUnitsPerSecond))
     let maxDistanceToCheck = (newPosition - enemy.BasicGameObject.Position).Abs()
-    let setup () = true, enemy.BasicGameObject.Position.vX, enemy.BasicGameObject.Position.vY, direction
-    let terminator (isHit, currentRayDistanceX, currentRayDistanceY, mapX, mapY, _) =
-      (not isHit) &&
-      (mapX >= 0 && mapX < game.Map.[0].Length && mapY >= 0 && mapY < game.Map.Length) &&
-      (abs currentRayDistanceX < maxDistanceToCheck.vX || abs currentRayDistanceY < maxDistanceToCheck.vY)
-    let isHit, _, _, _, _, hitMapX, hitMapY, _ = Ray.cast setup terminator game
     
-    let newDirection =
-      if isHit then
-        match game.Map.[hitMapY].[hitMapX] with
-        | Cell.TurningPoint newDirection -> newDirection
-        | Cell.Door _ -> direction // if we hit a door keep walking, doors get opened by any characters heading towards them
-        | _ -> direction.Reverse()
-      else
-        direction
+    let castRay () =
+      let setup () = true, enemy.BasicGameObject.Position.vX, enemy.BasicGameObject.Position.vY, direction
+      let terminator (isHit, currentRayDistanceX, currentRayDistanceY, mapX, mapY, _) =
+        (not isHit) &&
+        (mapX >= 0 && mapX < game.Map.[0].Length && mapY >= 0 && mapY < game.Map.Length) &&
+        (abs currentRayDistanceX < maxDistanceToCheck.vX || abs currentRayDistanceY < maxDistanceToCheck.vY)
+      let isHit, _, _, _, _, hitMapX, hitMapY, _ = Ray.cast setup terminator game
+      let isWallHit = match game.Map.[hitMapY].[hitMapX] with | Cell.Wall _ -> true | _ -> false
+      isHit, isWallHit, hitMapX, hitMapY
+      
+    let isHit, isWallHit, hitMapX, hitMapY =
+      match game.Map.[int newPosition.vY].[int newPosition.vX] with
+      | Cell.TurningPoint tpDirection ->
+        if tpDirection = direction then
+          false, false, int newPosition.vX, int newPosition.vY
+        else
+          true, false, int newPosition.vX, int newPosition.vY
+      | _ -> castRay ()
+    
+    // if we actually change direction then we must ensure the change of position is centered on the tile - otherwise
+    // we will find that gradually things will move into "off" positions and move in strange ways
+    let newDirection,finalPosition =
+      match isHit, isWallHit with
+      | true, false ->
+        // we only actually turn on a turning point if we have moved past the center of the cell / turning point
+        // and an easy way to figure that out is by comparing the distance to the new position based on the velocity
+        // with the distance to the turning point center - if the former is greater or equal to the latter then we
+        // have moved over the point
+        let turningPointPosition = { vX = float hitMapX + 0.5 ; vY = float hitMapY + 0.5 }
+        let existingDistanceToTurningPoint = (enemy.BasicGameObject.Position - turningPointPosition).Magnitude
+        let distanceToNewPosition = (newPosition - enemy.BasicGameObject.Position).Magnitude
+        if distanceToNewPosition >= existingDistanceToTurningPoint then       
+          (match game.Map.[hitMapY].[hitMapX] with
+          | Cell.TurningPoint newDirection -> newDirection
+          | Cell.Door _ -> direction // if we hit a door keep walking, doors get opened by any characters heading towards them
+          | _ -> direction.Reverse())
+          ,{ vX = float hitMapX + 0.5 ; vY = float hitMapY + 0.5 }
+        else
+          direction,newPosition
+      | true, true -> direction.Reverse(),{ vX = float hitMapX + 0.5 ; vY = float hitMapY + 0.5 }
+      | _ -> direction,newPosition
         
     { enemy with
-        BasicGameObject = { enemy.BasicGameObject with Position = newPosition }
+        BasicGameObject = { enemy.BasicGameObject with Position = finalPosition }
         DirectionVector = Some newDirection
     }
   | _ -> enemy
