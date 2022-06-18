@@ -60,8 +60,9 @@ let private getStartingPosition mapSize plane1 =
             // A diagnostic while working on patrolling - puts you in a room facing a guard who is patrolling
             //let startingPosition = { vX = float mapSize - float 38 - 0.5 ; vY = float 36 + 0.5 }
             //let direction = Direction.north
-            let startingPosition = { vX = float mapSize - float 51 - 0.5 ; vY = float 44 + 0.5 }
-            let direction = Direction.east
+            // A diagnostic for patrolling - puts you in a room with dogs and complex patrol paths
+            //let startingPosition = { vX = float mapSize - float 51 - 0.5 ; vY = float 44 + 0.5 }
+            //let direction = Direction.east
             
             { Position = startingPosition
               Direction = direction
