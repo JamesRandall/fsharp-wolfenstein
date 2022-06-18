@@ -16,6 +16,9 @@ Some of the code is rather scruffy and their are some arguments about ints and f
 
 I aim to at least get the AI working (and you can see the seeds of that in the code) and I will probably add the Wolfenstein health / info bar. Beyond that... don't know. Other fun projects to be built!
 
+## Prerequiresites
+
+On Windows install OpenAL SDK from https://www.openal.org/downloads/
 
 ## Running
 
