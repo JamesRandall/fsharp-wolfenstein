@@ -32,7 +32,7 @@ let init initScene = async {
   let! graphics = GraphicsCommon.loadGraphics ()
   let! sprites = Graphics.loadSprites ()
   
-  let drawScene,canvasWidth,canvasHeight = initScene ()
+  let drawScene,_,canvasHeight = initScene ()
   
   let gameLoop (game:Game) (frameTime:float<ms>) =
     let updatedGameState =

@@ -101,8 +101,6 @@ module Walls =
     ) initialWallRenderResult
     
 module Objects =
-  open App
-  
   let isPointInTriangle p1 p2 p3 testPoint  =
     // barycentric coordinate approach
     // https://stackoverflow.com/questions/40959754/c-sharp-is-the-point-in-triangle
@@ -153,9 +151,10 @@ module Objects =
                 isPointInTriangle p1 p2 p3 playerTestPoint
               )
               |> Option.defaultValue 0
-            e.BasicGameObject.SpriteIndex + quadrantIndex
+            //e.BasicGameObject.SpriteIndex + quadrantIndex
+            e.BaseSpriteIndexForState + quadrantIndex
           )
-          |> Option.defaultValue e.BasicGameObject.SpriteIndex
+          |> Option.defaultValue e.BaseSpriteIndexForState //e.BasicGameObject.SpriteIndex
         else
           e.DeathSpriteIndexes.[e.CurrentAnimationFrame]
     
@@ -181,7 +180,7 @@ module Objects =
         let drawStartY = max 0 (-spriteHeight/2 + int height / 2)
         let drawEndY = min (int height - 1) (spriteHeight/2 + int height/2)
         
-        let spriteWidth = int (abs ((height) / transformY))
+        let spriteWidth = int (abs (height / transformY))
         let drawStartX = max 0 (-spriteWidth / 2 + int spriteScreenX)
         let drawEndX = min (int width-1) (spriteWidth / 2 + int spriteScreenX)
         let spriteIndex = orientedSpriteIndex sprite

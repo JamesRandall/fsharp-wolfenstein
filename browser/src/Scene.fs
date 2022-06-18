@@ -3,7 +3,6 @@ module App.Scene
 open App
 open Browser.Types
 open Fable.Core
-open App.Model
 open Browser
 open Fable.Core.JS
 open Fable.Core.JsInterop

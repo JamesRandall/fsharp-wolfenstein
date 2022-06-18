@@ -21,6 +21,7 @@ type Vector2D =
   }
   member x.CrossProduct = { vX = x.vY ; vY = -x.vX }
   static member (-) (a,b) = { vX = a.vX - b.vX ; vY = a.vY - b.vY }
+  static member (+) (a,b) = { vX = a.vX + b.vX ; vY = a.vY + b.vY }
   static member (*) (a,b) = { vX = a.vX * b ; vY = a.vY * b }
   // we use this for sorting sprites, we don't need the square root
   member this.UnsquaredDistanceFrom (other:Vector2D) =
@@ -93,6 +94,7 @@ type DoorState =
 type Cell =
   | Wall of Wall
   | Door of int // index of the door in the doors array
+  | TurningPoint of Vector2D
   | Empty
   
 type EnemyType =
@@ -146,6 +148,15 @@ type Enemy =
   member this.MovementSpriteBlockIndex frame = this.BasicGameObject.SpriteIndex + frame*this.FramesPerBlock
   member this.NumberOfAnimationFrames = this.SpriteBlocks - 1
   member this.IsAlive = match this.State with | EnemyStateType.Dead | EnemyStateType.Die -> false | _ -> true
+  member this.BaseSpriteIndexForState =
+    match this.State with
+    | EnemyStateType.Standing -> this.StationarySpriteBlockIndex
+    | EnemyStateType.Path -> this.MovementSpriteBlockIndex this.CurrentAnimationFrame
+    | _ -> this.BasicGameObject.SpriteIndex
+  static member AnimationTimeForState state =
+    match state with
+    | EnemyStateType.Path -> 200.<ms>
+    | _ -> 0.<ms>
   
 [<RequireQualifiedAccess>]
 type WeaponType =
@@ -239,8 +250,19 @@ type Game =
     Doors: DoorState list
   }
   
-  
+module Direction =
+  // east and west directions are flipped due to our renderer
+  let north = { vX = 0. ; vY = -1. }
+  let northEast = { vX = -1. ; vY = -1. }.Normalize()
+  let east = { vX = -1. ; vY= 0. }
+  let southEast = { vX = -1. ; vY = 1. }.Normalize()
+  let south = { vX = 0. ; vY = 1. }
+  let southWest = { vX = 1. ; vY = 1. }.Normalize()
+  let west = { vX = 1. ; vY = 0. }
+  let northWest = { vX = 1.; vY = -1. }.Normalize()
+
 let textureWidth = 64.
 let textureHeight = 64.
 // this is the width around the center of the screen that is included in the hit detection when a weapon is fired
 let firingTolerance = 40
+let deathAnimationFrameTime = 100.<ms>

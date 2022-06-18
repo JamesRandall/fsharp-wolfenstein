@@ -1,6 +1,5 @@
 module App.AI
 open App.Model
-open Fable.Core.JS
 
 module List =
   let private randomGenerator = System.Random ()
@@ -36,7 +35,7 @@ let isPlayerVisibleToEnemy game (enemy:Enemy) =
     let rayDirection = vectorToEnemy.Normalize()
     
     let setup () = posX,posY, rayDirection
-    let terminator (isHit, currentRayDistanceX, currentRayDistanceY, mapX, mapY, side) =
+    let terminator (isHit, currentRayDistanceX, currentRayDistanceY, mapX, mapY, _) =
       (not isHit) &&
       (mapX >= 0 && mapX < game.Map.[0].Length && mapY >= 0 && mapY < game.Map.Length ) &&
       (abs currentRayDistanceX < absVectorToEnemy.vX || abs currentRayDistanceY < absVectorToEnemy.vY)
@@ -58,17 +57,34 @@ let getNextState canSeePlayer enemy =
     ) ()
   | _ -> enemy.State
     
-let applyAi game gameObject =
+let preProcess game enemy =
+  // preprocess looks for state changes based on the current game world state
+  let canSeePlayer = enemy |> isPlayerVisibleToEnemy game
+  let newState = enemy |> getNextState canSeePlayer
+  if newState <> enemy.State then
+    Utils.log $"Enemy at {enemy.BasicGameObject.Position.vX}, {enemy.BasicGameObject.Position.vY} moving from {enemy.State} to {newState}"
+    { enemy with State = newState }
+  else
+    enemy
+    
+let updateBasedOnCurrentState (frameTime:float<ms>) game enemy =
+  let enemyVelocityUnitsPerSecond = 0.75
+  
+  // updates the enemy based on its state
+  match enemy.State,enemy.DirectionVector with
+  | EnemyStateType.Path, Some direction ->
+    let newPosition = enemy.BasicGameObject.Position + (direction * (frameTime / 1000.<ms> * enemyVelocityUnitsPerSecond))
+    { enemy with BasicGameObject = { enemy.BasicGameObject with Position = newPosition } }
+  | _ -> enemy
+
+let applyAi frameTime game gameObject =
   match gameObject with
   | GameObject.Enemy enemy ->
-    let canSeePlayer = enemy |> isPlayerVisibleToEnemy game
-    let newState = enemy |> getNextState canSeePlayer
-    (
-      if newState <> enemy.State then
-        //console.log $"Enemy at {enemy.BasicGameObject.Position.vX}, {enemy.BasicGameObject.Position.vY} moving from {enemy.State} to {newState}"
-        { enemy with State = newState }
-      else
-        enemy
-    )
-    |> GameObject.Enemy
+    if enemy.IsAlive then
+      enemy
+      |> preProcess game
+      |> updateBasedOnCurrentState frameTime game
+      |> GameObject.Enemy
+    else
+      gameObject
   | _ -> gameObject

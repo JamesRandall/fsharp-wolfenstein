@@ -5,8 +5,6 @@ open App.Model
 open App.AI
 
 let private weaponAnimationFrameTime = 100.<ms>
-let private deathAnimationFrameTime = 100.<ms>
-
 let private actionDistanceTolerance = 0.75
 let private doorOpeningTime = 1000.<ms>
 let private doorOpenTime = 5000.<ms>
@@ -164,10 +162,9 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
       game,false
     | _ -> game,false
     
-  let updateEnemy beganFiringSequenceOnFrame indexOfGameObject gameObject =
+  let updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame indexOfGameObject gameObject =
     match gameObject with
     | GameObject.Enemy e ->
-      let timeRemainingInAnimationFrame = e.TimeUntilNextAnimationFrame-frameTime
       let updatedEnemy =
         if e.IsAlive then
           match renderingResult.SpriteInFrontOfPlayerIndexOption,beganFiringSequenceOnFrame with
@@ -184,23 +181,47 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
             else
               e
           | _ -> e
-        elif e.CurrentAnimationFrame < e.DeathSpriteIndexes.Length-1 then
-          if timeRemainingInAnimationFrame < 0.<ms> then
-            { e with CurrentAnimationFrame = e.CurrentAnimationFrame+1 ; TimeUntilNextAnimationFrame = deathAnimationFrameTime + timeRemainingInAnimationFrame  }
-          else
-            { e with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame }
         else
           e
       GameObject.Enemy updatedEnemy
     | GameObject.Treasure t -> GameObject.Treasure t
+    
+  let updateEnemyAnimation frameTime game gameObject =
+    match gameObject with
+    | GameObject.Enemy enemy ->
+      let timeRemainingInAnimationFrame = enemy.TimeUntilNextAnimationFrame-frameTime
+      if enemy.IsAlive then
+        match enemy.State with
+        | EnemyStateType.Path ->
+          if timeRemainingInAnimationFrame < 0.<ms> then
+            let nextFrame =
+              if enemy.CurrentAnimationFrame + 1 > enemy.NumberOfAnimationFrames then
+                0
+              else
+                enemy.CurrentAnimationFrame + 1
+            let timeUntilNextFrame = (Enemy.AnimationTimeForState enemy.State) + timeRemainingInAnimationFrame
+            { enemy with CurrentAnimationFrame = nextFrame ; TimeUntilNextAnimationFrame = timeUntilNextFrame  } |> GameObject.Enemy
+          else
+            { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
+        | _ -> enemy |> GameObject.Enemy
+      else
+        if enemy.CurrentAnimationFrame < enemy.DeathSpriteIndexes.Length-1 then
+          if timeRemainingInAnimationFrame < 0.<ms> then
+            { enemy with CurrentAnimationFrame = enemy.CurrentAnimationFrame+1 ; TimeUntilNextAnimationFrame = deathAnimationFrameTime + timeRemainingInAnimationFrame  } |> GameObject.Enemy
+          else
+            { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
+        else
+          enemy |> GameObject.Enemy
+    | _ -> gameObject
     
   let updateEnemies (game:Game,beganFiringSequenceOnFrame) =
     let updatedGameObjects =
       game.GameObjects
       |> List.mapi(fun i go ->
         go
-        |> updateEnemy beganFiringSequenceOnFrame i
-        |> applyAi game
+        |> updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame i
+        |> updateEnemyAnimation frameTime game
+        |> applyAi frameTime game
         |> calculateRelativeGameObjectPosition game
       )
     { game with GameObjects = updatedGameObjects }

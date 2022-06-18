@@ -55,7 +55,13 @@ let private getStartingPosition mapSize plane1 =
               | 21us -> { vX = 0. ; vY = 1. }
               | 22us | _ -> { vX = 1. ; vY = 0. }
             let fieldOfView = 1.
-            { Position = { vX = float mapSize - float column - 0.5 ; vY = float row + 0.5 }
+            let startingPosition = { vX = float mapSize - float column - 0.5 ; vY = float row + 0.5 }
+            
+            // A diagnostic while working on patrolling
+            let startingPosition = { vX = float mapSize - float 38 - 0.5 ; vY = float 36 + 0.5 }
+            let direction = Direction.north
+            
+            { Position = startingPosition
               Direction = direction
               Plane = direction.CrossProduct * fieldOfView
               FieldOfView = fieldOfView
@@ -140,7 +146,29 @@ let loadLevelFromRawMap (raw:RawMap) =
             
             row @ [Cell.Door innerDoors.Length],(innerDoors @ [doorState])
           else
-            row @ [Cell.Empty],innerDoors
+            // a turning point is represented as a game object but we encode it into the cells as its more convenient
+            // to lookup within the game loop this way
+            let objectValue = getPlaneValue raw.Plane1 colIndex rowIndex
+            let cell =
+              if objectValue = 0x5Aus then
+                Cell.TurningPoint Direction.east
+              elif objectValue = 0x5Bus then
+                Cell.TurningPoint Direction.northEast
+              elif objectValue = 0x5Cus then
+                Cell.TurningPoint Direction.north
+              elif objectValue = 0x5Dus then
+                Cell.TurningPoint Direction.northWest
+              elif objectValue = 0x5Eus then
+                Cell.TurningPoint Direction.west
+              elif objectValue = 0x5Fus then
+                Cell.TurningPoint Direction.southWest
+              elif objectValue = 0x60us then
+                Cell.TurningPoint Direction.south
+              elif objectValue = 0x61us then
+                Cell.TurningPoint Direction.east
+              else
+                Cell.Empty
+            row @ [cell], innerDoors
         ) ([],outerDoors) 
       rows @ [createdRow],rowDoors
     ) ([], [])
@@ -204,7 +232,7 @@ let loadLevelFromRawMap (raw:RawMap) =
         SpriteBlocks = spriteBlocks
         CurrentAnimationFrame = 0
         FramesPerBlock = framesPerBlock
-        TimeUntilNextAnimationFrame = 0.<ms>
+        TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState startingState
       }
     let guardEnemy = createEnemy 50 4 8 [90 ; 91 ; 92 ; 93 ; 95] [96 ; 97 ; 98] EnemyType.Guard
     let dogEnemy = createEnemy 99 3 8 [131 ; 132 ; 133 ; 134] [135 ; 136 ; 137] EnemyType.Dog
@@ -284,24 +312,6 @@ let loadLevelFromRawMap (raw:RawMap) =
               hansEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
             elif value = 215us then
               ottoEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
-            (*  
-            elif value = 0x5Aus then
-              turningPoint colIndex rowIndex east
-            elif value = 0x5Bus then
-              turningPoint colIndex rowIndex northEast
-            elif value = 0x5Cus then
-              turningPoint colIndex rowIndex north
-            elif value = 0x5Dus then
-              turningPoint colIndex rowIndex northWest
-            elif value = 0x5Eus then
-              turningPoint colIndex rowIndex west
-            elif value = 0x5Fus then
-              turningPoint colIndex rowIndex southWest
-            elif value = 0x60us then
-              turningPoint colIndex rowIndex south
-            elif value = 0x61us then
-              turningPoint colIndex rowIndex southEast
-            *)
             
             else
               None

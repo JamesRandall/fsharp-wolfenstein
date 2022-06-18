@@ -42,7 +42,9 @@ let cast setup terminator game =
             currentRayDistanceX, currentRayDistanceY + deltaDistY
         let newIsHit =
           match game.Map.[newMapY].[newMapX] with
+          | Cell.TurningPoint _
           | Cell.Empty -> false
+          
           | Cell.Wall _ -> true
           | Cell.Door doorIndex ->
             let doorState = game.Doors.[doorIndex]
@@ -68,11 +70,11 @@ let cast setup terminator game =
               if newSide = Side.NorthSouth then
                 let true_y_step = sqrt(true_delta_x*true_delta_x-1.)
                 let half_step_in_y=rye2+(float stepY*true_y_step)/2.
-                floor (half_step_in_y) = newMapY && half_step_in_y-float newMapY<(1.0-doorState.Offset/64.0)
+                floor half_step_in_y = newMapY && half_step_in_y-float newMapY<(1.0-doorState.Offset/64.0)
               else
                 let true_x_step=sqrt(true_delta_y*true_delta_y-1.)
                 let half_step_in_x=rxe2+(float stepX*true_x_step)/2.
-                floor(half_step_in_x) = newMapX && half_step_in_x-float newMapX<(1.0-doorState.Offset/64.0)
+                floor half_step_in_x = newMapX && half_step_in_x-float newMapX<(1.0-doorState.Offset/64.0)
         newIsHit, newSideDistX, newSideDistY, newMapX, newMapY, newSide
     ) (false, initialSideDistX, initialSideDistY, mapX, mapY, Side.NorthSouth)
     |> Seq.skipWhile terminator
