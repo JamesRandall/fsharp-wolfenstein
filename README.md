@@ -35,7 +35,7 @@ Compatible with node 16, 17, 18.
 To run the game:
 
 * Navigate to the browser folder
-* Install dependencies: `npm install`
+* Install dependencies: `npm ci`
 * Start the compiler in watch mode and a development server: `npm start`
 * After the first compilation is finished, in your browser open: http://localhost:8080/
 
