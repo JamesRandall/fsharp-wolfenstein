@@ -27,7 +27,7 @@ Space bar - action (e.g. open door)
 
 ### Browser
 
-I've been using node 16 to compile this. 17 doesn't work at the moment.
+Compatible with node 16, 17, 18.
 
 To run the game:
 
