@@ -1,4 +1,5 @@
-module App
+module App.StartupObject
+
 open App.Model
 open Browser.Dom
 open Fable.Core
