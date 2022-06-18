@@ -86,13 +86,10 @@ let loadRawMap levelIndex = async {
       let offset = mapHeadView.getUint32(2 + 4 * levelIndex, true)
       let mapHeader = Constructors.DataView.Create(gameMaps, int offset, 42.)
       
-      Utils.log $"{mapHeader.getUint32 (0,true)}"
-      
       let plane0View =
         Constructors.DataView.Create (
           gameMaps, mapHeader.getUint32(0, true) |> int, mapHeader.getUint16(12, true) |> float
-        )
-        
+        )  
       let plane1View =
         Constructors.DataView.Create (
           gameMaps, mapHeader.getUint32(4, true) |> int, mapHeader.getUint16(14, true) |> float

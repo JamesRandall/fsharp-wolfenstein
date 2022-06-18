@@ -45,8 +45,28 @@ let isPlayerVisibleToEnemy game (enemy:Enemy) =
   else
     false
   
+(*
+let chaseDirection game enemy =
+  let reverseDirection = enemy.BasicGameObject.Position.Reverse()
+  let delta = game.Camera.Position - enemy.BasicGameObject.Position
+  let candidateDirection =
+    let dir1 =
+      { vX = if delta.vX > 0 then Direction.east.vX else Direction.west.vX
+        vY = if delta.vY > 0 then Direction.south.vY else Direction.south.vY
+      }
+    let dir2 =
+      if abs delta.vY > abs delta.vX then
+        { vX = testDirection.vY ; vY = testDirection.vX }
+      else
+        testDirection
+    { vX = if dir2.vX = reverseDirection.vX then 0. else dir2.vX
+      vY = if dir2.vY = reverseDirection.vY then 0. else dir2.vY
+    }
+*)
+  
 let getNextState canSeePlayer enemy =
   match enemy.State, canSeePlayer with
+  // Disabled to test patrolling
   //| EnemyStateType.Path, true
   | EnemyStateType.Standing, true
   | EnemyStateType.Ambushing, true ->
