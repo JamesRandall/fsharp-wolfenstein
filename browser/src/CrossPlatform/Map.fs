@@ -57,9 +57,9 @@ let private getStartingPosition mapSize plane1 =
             let fieldOfView = 1.
             let startingPosition = { vX = float mapSize - float column - 0.5 ; vY = float row + 0.5 }
             
-            // A diagnostic while working on patrolling
-            let startingPosition = { vX = float mapSize - float 38 - 0.5 ; vY = float 36 + 0.5 }
-            let direction = Direction.north
+            // A diagnostic while working on patrolling - puts you in a room facing a guard who is patrolling
+            //let startingPosition = { vX = float mapSize - float 38 - 0.5 ; vY = float 36 + 0.5 }
+            //let direction = Direction.north
             
             { Position = startingPosition
               Direction = direction
@@ -250,8 +250,6 @@ let loadLevelFromRawMap (raw:RawMap) =
     
     raw.Plane1
     |> traverseMap (fun colIndex rowIndex value ->
-      // useful for debugging
-      //if colIndex = 28 && rowIndex = 62 then
         // this requires some additional nuance as their are different kinds of collectible
         if value >= 23us && value <= 70us then
           let position = { vX = float raw.MapSize - float colIndex - 0.5 ; vY = float rowIndex + 0.5 }
@@ -262,64 +260,67 @@ let loadLevelFromRawMap (raw:RawMap) =
             CollidesWithBullets = false
           } |> GameObject.Treasure |> Some
         elif value >= 108us then
-          let enemy =
-            // guards
-            if 108us <= value && value < 116us then
-              guardEnemy colIndex rowIndex (Some ((value-108us) % 4us)) (value |> standingOrMoving 108us) |> Some // level 1
-            elif 144us <= value && value < 152us then
-              guardEnemy colIndex rowIndex (Some ((value-144us) % 4us)) (value |> standingOrMoving 144us) |> Some // level 3
-            elif 180us <= value && value < 188us then
-              guardEnemy colIndex rowIndex (Some ((value-180us) % 4us)) (value |> standingOrMoving 180us) |> Some // level 4
-            elif 116us <= value && value < 124us then
-              leonEnemy colIndex rowIndex (Some ((value-116us) % 4us)) (value |> standingOrMoving 116us) |> Some // level 1
-            elif 152us <= value && value < 160us then
-              leonEnemy colIndex rowIndex (Some ((value-152us) % 4us)) (value |> standingOrMoving 152us) |> Some // level 3
-            elif 188us <= value && value < 196us then
-              leonEnemy colIndex rowIndex (Some ((value-188us) % 4us)) (value |> standingOrMoving 188us) |> Some // level 3
-            elif 126us <= value && value < 134us then
-              officerEnemy colIndex rowIndex (Some ((value-126us) % 4us)) (value |> standingOrMoving 126us) |> Some // level 1
-            elif 162us <= value && value < 170us then
-              officerEnemy colIndex rowIndex (Some ((value-162us) % 4us)) (value |> standingOrMoving 162us) |> Some // level 3
-            elif 198us <= value && value < 206us then
-              officerEnemy colIndex rowIndex (Some ((value-198us) % 4us)) (value |> standingOrMoving 198us) |> Some // level 4
+          // useful for debugging if you want a single enemy
+          // find their location in maped42 and enter the co-ordinates below 
+          //if colIndex = 38 && rowIndex = 33 then
+            let enemy =
+              // guards
+              if 108us <= value && value < 116us then
+                guardEnemy colIndex rowIndex (Some ((value-108us) % 4us)) (value |> standingOrMoving 108us) |> Some // level 1
+              elif 144us <= value && value < 152us then
+                guardEnemy colIndex rowIndex (Some ((value-144us) % 4us)) (value |> standingOrMoving 144us) |> Some // level 3
+              elif 180us <= value && value < 188us then
+                guardEnemy colIndex rowIndex (Some ((value-180us) % 4us)) (value |> standingOrMoving 180us) |> Some // level 4
+              elif 116us <= value && value < 124us then
+                leonEnemy colIndex rowIndex (Some ((value-116us) % 4us)) (value |> standingOrMoving 116us) |> Some // level 1
+              elif 152us <= value && value < 160us then
+                leonEnemy colIndex rowIndex (Some ((value-152us) % 4us)) (value |> standingOrMoving 152us) |> Some // level 3
+              elif 188us <= value && value < 196us then
+                leonEnemy colIndex rowIndex (Some ((value-188us) % 4us)) (value |> standingOrMoving 188us) |> Some // level 3
+              elif 126us <= value && value < 134us then
+                officerEnemy colIndex rowIndex (Some ((value-126us) % 4us)) (value |> standingOrMoving 126us) |> Some // level 1
+              elif 162us <= value && value < 170us then
+                officerEnemy colIndex rowIndex (Some ((value-162us) % 4us)) (value |> standingOrMoving 162us) |> Some // level 3
+              elif 198us <= value && value < 206us then
+                officerEnemy colIndex rowIndex (Some ((value-198us) % 4us)) (value |> standingOrMoving 198us) |> Some // level 4
+                
+              elif 124us = value then
+                let deadGuard = guardEnemy colIndex rowIndex (Some ((value-108us) % 4us)) EnemyStateType.Dead 
+                { deadGuard with CurrentAnimationFrame = deadGuard.DeathSpriteIndexes.Length-1 } |> Some
+                
+              elif 134us <= value && value < 138us then
+                dogEnemy colIndex rowIndex (Some ((value-134us) % 4us)) EnemyStateType.Path |> Some
+              elif 170us <= value && value < 174us then
+                dogEnemy colIndex rowIndex (Some ((value-170us) % 4us)) EnemyStateType.Path |> Some
+              elif 210us <= value && value < 214us then
+                dogEnemy colIndex rowIndex (Some ((value-210us) % 4us)) EnemyStateType.Path |> Some
+                
+              elif 216us <= value && value < 224us then
+                zombieEnemy colIndex rowIndex (Some ((value-216us) % 4us)) (value |> standingOrMoving 216us) |> Some
+              elif 234us <= value && value < 242us then
+                zombieEnemy colIndex rowIndex (Some ((value-234us) % 4us)) (value |> standingOrMoving 234us) |> Some
+              elif value = 160us then
+                fakeAdolfEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
+              elif value = 178us then
+                adolfEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
+              elif value = 179us then
+                fettgesichtEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
+              elif value = 196us then
+                schabbsEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
+              elif value = 197us then
+                gretelEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
+              elif value = 214us then
+                hansEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
+              elif value = 215us then
+                ottoEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
               
-            elif 124us = value then
-              let deadGuard = guardEnemy colIndex rowIndex (Some ((value-108us) % 4us)) EnemyStateType.Dead 
-              { deadGuard with CurrentAnimationFrame = deadGuard.DeathSpriteIndexes.Length-1 } |> Some
-              
-            elif 134us <= value && value < 138us then
-              dogEnemy colIndex rowIndex (Some ((value-134us) % 4us)) EnemyStateType.Path |> Some
-            elif 170us <= value && value < 174us then
-              dogEnemy colIndex rowIndex (Some ((value-170us) % 4us)) EnemyStateType.Path |> Some
-            elif 210us <= value && value < 214us then
-              dogEnemy colIndex rowIndex (Some ((value-210us) % 4us)) EnemyStateType.Path |> Some
-              
-            elif 216us <= value && value < 224us then
-              zombieEnemy colIndex rowIndex (Some ((value-216us) % 4us)) (value |> standingOrMoving 216us) |> Some
-            elif 234us <= value && value < 242us then
-              zombieEnemy colIndex rowIndex (Some ((value-234us) % 4us)) (value |> standingOrMoving 234us) |> Some
-            elif value = 160us then
-              fakeAdolfEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
-            elif value = 178us then
-              adolfEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
-            elif value = 179us then
-              fettgesichtEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
-            elif value = 196us then
-              schabbsEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
-            elif value = 197us then
-              gretelEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
-            elif value = 214us then
-              hansEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
-            elif value = 215us then
-              ottoEnemy colIndex rowIndex None EnemyStateType.Ambushing |> Some
-            
-            else
-              None
-          enemy |> Option.map (fun e -> e |> GameObject.Enemy)
+              else
+                None
+            enemy |> Option.map (fun e -> e |> GameObject.Enemy)
+          //else
+          //  None
         else
           None
-      //else
-      //  None
     )
     |> Seq.toList
     

@@ -13,11 +13,11 @@ let inFieldOfView game (enemy:Enemy) =
     let fieldOfViewAngle = (45. * System.Math.PI / 180.) * 1.<radians>
     let boundingVectorA = directionVector.Normalize().Rotate -fieldOfViewAngle
     let boundingVectorB = directionVector.Normalize().Rotate fieldOfViewAngle
-    let directionToPlayer =
+    let playerTestPoint =
       { vX = game.Camera.Position.vX - enemy.BasicGameObject.Position.vX
         vY = game.Camera.Position.vY - enemy.BasicGameObject.Position.vY
-      }
-    directionToPlayer.Normalize().IsBetween boundingVectorA boundingVectorB 
+      }.Normalize()/2.
+    Ray.isPointInTriangle { vX = 0. ; vY = 0. } boundingVectorA boundingVectorB playerTestPoint
   | _ -> true  
   
 
@@ -34,7 +34,7 @@ let isPlayerVisibleToEnemy game (enemy:Enemy) =
     let absVectorToEnemy = vectorToEnemy.Abs()
     let rayDirection = vectorToEnemy.Normalize()
     
-    let setup () = posX,posY, rayDirection
+    let setup () = false, posX, posY, rayDirection
     let terminator (isHit, currentRayDistanceX, currentRayDistanceY, mapX, mapY, _) =
       (not isHit) &&
       (mapX >= 0 && mapX < game.Map.[0].Length && mapY >= 0 && mapY < game.Map.Length ) &&
@@ -47,6 +47,7 @@ let isPlayerVisibleToEnemy game (enemy:Enemy) =
   
 let getNextState canSeePlayer enemy =
   match enemy.State, canSeePlayer with
+  //| EnemyStateType.Path, true
   | EnemyStateType.Standing, true
   | EnemyStateType.Ambushing, true ->
     (
@@ -73,8 +74,35 @@ let updateBasedOnCurrentState (frameTime:float<ms>) game enemy =
   // updates the enemy based on its state
   match enemy.State,enemy.DirectionVector with
   | EnemyStateType.Path, Some direction ->
+    // A character entering a turning point causes it to turn in the direction the turning point indicates.
+    //
+    // Fast moving characters and/or low framerates could cause a character to essentially "skip" over a square and
+    // so rather than check the new position on the map for a turning point we cast a ray between the previous position
+    // and the new position looking for a hit of a turning point.
+    //
+    // As a fail safe if we don't hit a turning point we simply reverse the direction
     let newPosition = enemy.BasicGameObject.Position + (direction * (frameTime / 1000.<ms> * enemyVelocityUnitsPerSecond))
-    { enemy with BasicGameObject = { enemy.BasicGameObject with Position = newPosition } }
+    let maxDistanceToCheck = (newPosition - enemy.BasicGameObject.Position).Abs()
+    let setup () = true, enemy.BasicGameObject.Position.vX, enemy.BasicGameObject.Position.vY, direction
+    let terminator (isHit, currentRayDistanceX, currentRayDistanceY, mapX, mapY, _) =
+      (not isHit) &&
+      (mapX >= 0 && mapX < game.Map.[0].Length && mapY >= 0 && mapY < game.Map.Length) &&
+      (abs currentRayDistanceX < maxDistanceToCheck.vX || abs currentRayDistanceY < maxDistanceToCheck.vY)
+    let isHit, _, _, _, _, hitMapX, hitMapY, _ = Ray.cast setup terminator game
+    
+    let newDirection =
+      if isHit then
+        match game.Map.[hitMapY].[hitMapX] with
+        | Cell.TurningPoint newDirection -> newDirection
+        | Cell.Door _ -> direction // if we hit a door keep walking, doors get opened by any characters heading towards them
+        | _ -> direction.Reverse()
+      else
+        direction
+        
+    { enemy with
+        BasicGameObject = { enemy.BasicGameObject with Position = newPosition }
+        DirectionVector = Some newDirection
+    }
   | _ -> enemy
 
 let applyAi frameTime game gameObject =
@@ -83,6 +111,7 @@ let applyAi frameTime game gameObject =
     if enemy.IsAlive then
       enemy
       |> preProcess game
+      // |> openDoorsInRange game
       |> updateBasedOnCurrentState frameTime game
       |> GameObject.Enemy
     else

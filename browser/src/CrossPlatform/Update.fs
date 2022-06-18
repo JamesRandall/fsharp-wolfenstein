@@ -72,19 +72,21 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
           UnsquaredDistanceFromPlayer = game.Camera.Position.UnsquaredDistanceFrom go.BasicGameObject.Position
           PlayerRelativePosition = go.BasicGameObject.Position - game.Camera.Position
       }
-    
+   
+  let tryOpenDoor (doorState:DoorState) =
+    match doorState.Status with
+    | DoorStatus.Closed ->
+      playSoundEffect SoundEffect.DoorOpen
+      { doorState with Status = DoorStatus.Opening ; TimeRemainingInAnimationState = doorOpeningTime }
+    | _ -> doorState
+       
   let handleAction (game:Game) =
     if renderingResult.DistanceToWallInFrontOfPlayer <= actionDistanceTolerance &&
        game.ControlState &&& ControlState.Action > ControlState.None then
       let actionWallX, actionWallY = renderingResult.WallInFrontOfPlayer
       match game.Map.[actionWallY].[actionWallX] with
       | Cell.Door doorIndex ->
-        let newDoorState =
-          match game.Doors.[doorIndex].Status with
-          | DoorStatus.Closed ->
-            playSoundEffect SoundEffect.DoorOpen
-            { game.Doors.[doorIndex] with Status = DoorStatus.Opening ; TimeRemainingInAnimationState = doorOpeningTime }
-          | _ -> game.Doors.[doorIndex]
+        let newDoorState = tryOpenDoor game.Doors.[doorIndex] 
         { game with
             Doors = game.Doors |> List.mapi(fun i d -> if i = doorIndex then newDoorState else d)
         }
@@ -186,7 +188,7 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
       GameObject.Enemy updatedEnemy
     | GameObject.Treasure t -> GameObject.Treasure t
     
-  let updateEnemyAnimation frameTime game gameObject =
+  let updateEnemyAnimation frameTime gameObject =
     match gameObject with
     | GameObject.Enemy enemy ->
       let timeRemainingInAnimationFrame = enemy.TimeUntilNextAnimationFrame-frameTime
@@ -195,10 +197,7 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
         | EnemyStateType.Path ->
           if timeRemainingInAnimationFrame < 0.<ms> then
             let nextFrame =
-              if enemy.CurrentAnimationFrame + 1 > enemy.NumberOfAnimationFrames then
-                0
-              else
-                enemy.CurrentAnimationFrame + 1
+              if enemy.CurrentAnimationFrame + 1 > enemy.NumberOfAnimationFrames then 0 else enemy.CurrentAnimationFrame + 1
             let timeUntilNextFrame = (Enemy.AnimationTimeForState enemy.State) + timeRemainingInAnimationFrame
             { enemy with CurrentAnimationFrame = nextFrame ; TimeUntilNextAnimationFrame = timeUntilNextFrame  } |> GameObject.Enemy
           else
@@ -214,17 +213,49 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
           enemy |> GameObject.Enemy
     | _ -> gameObject
     
+  let openDoorsInRangeOfEnemies game =
+    let rangeToOpenDoorsAt = 1.5
+    game.GameObjects
+    |> List.fold(fun (innerGame:Game) gameObject ->
+      match gameObject with
+      | GameObject.Enemy enemy ->
+        match enemy.State,enemy.DirectionVector with
+        | EnemyStateType.Path, Some direction
+        | EnemyStateType.Chase, Some direction ->
+          let maxDistanceToCheck = direction.Normalize().Abs()*rangeToOpenDoorsAt
+          let setup () = false, enemy.BasicGameObject.Position.vX, enemy.BasicGameObject.Position.vY, direction
+          let terminator (isHit, currentRayDistanceX, currentRayDistanceY, mapX, mapY, _) =
+            (not isHit) &&
+            (mapX >= 0 && mapX < game.Map.[0].Length && mapY >= 0 && mapY < game.Map.Length) &&
+            (abs currentRayDistanceX < maxDistanceToCheck.vX || abs currentRayDistanceY < maxDistanceToCheck.vY)
+          let isHit, _, _, _, _, hitMapX, hitMapY, _ = Ray.cast setup terminator game
+          if isHit then
+            match game.Map.[hitMapY].[hitMapX] with
+            | Cell.Door doorIndex ->
+              { innerGame with
+                  Doors =
+                    innerGame.Doors
+                    |> List.mapi (fun i d -> if i = doorIndex then tryOpenDoor innerGame.Doors.[i] else d)
+              }
+            | _ -> innerGame
+          else
+            innerGame
+        | _ -> innerGame
+      | _ -> innerGame
+    ) game
+    
+    
   let updateEnemies (game:Game,beganFiringSequenceOnFrame) =
     let updatedGameObjects =
       game.GameObjects
       |> List.mapi(fun i go ->
         go
         |> updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame i
-        |> updateEnemyAnimation frameTime game
+        |> updateEnemyAnimation frameTime 
         |> applyAi frameTime game
         |> calculateRelativeGameObjectPosition game
       )
-    { game with GameObjects = updatedGameObjects }
+    { game with GameObjects = updatedGameObjects } |> openDoorsInRangeOfEnemies
     
   let sortGameObjectsByDescendingDistance (game:Game) =
     // we need them in distance order for rendering and hit detection

@@ -4,7 +4,7 @@ open App.Model
 
 // casts a ray until a certain condition (terminator) is met
 let cast setup terminator game =
-  let posX, posY, rayDirection = setup ()
+  let includeTurningPoints,posX, posY, rayDirection = setup ()
   let mapX = int posX
   let mapY = int posY
   
@@ -42,9 +42,8 @@ let cast setup terminator game =
             currentRayDistanceX, currentRayDistanceY + deltaDistY
         let newIsHit =
           match game.Map.[newMapY].[newMapX] with
-          | Cell.TurningPoint _
+          | Cell.TurningPoint _ -> includeTurningPoints
           | Cell.Empty -> false
-          
           | Cell.Wall _ -> true
           | Cell.Door doorIndex ->
             let doorState = game.Doors.[doorIndex]
@@ -81,3 +80,15 @@ let cast setup terminator game =
     |> Seq.head
   
   isHit, deltaDistX, deltaDistY, totalRayDistanceX, totalRayDistanceY, hitMapX, hitMapY, side
+  
+let isPointInTriangle p1 p2 p3 testPoint  =
+  // barycentric coordinate approach
+  // https://stackoverflow.com/questions/40959754/c-sharp-is-the-point-in-triangle
+  let a =
+    ((p2.vY - p3.vY)*(testPoint.vX - p3.vX) + (p3.vX - p2.vX)*(testPoint.vY - p3.vY)) /
+    ((p2.vY - p3.vY)*(p1.vX - p3.vX) + (p3.vX - p2.vX)*(p1.vY - p3.vY))
+  let b =
+    ((p3.vY - p1.vY)*(testPoint.vX - p3.vX) + (p1.vX - p3.vX)*(testPoint.vY - p3.vY)) /
+    ((p2.vY - p3.vY)*(p1.vX - p3.vX) + (p3.vX - p2.vX)*(p1.vY - p3.vY))
+  let c = 1. - a - b
+  a >= 0. && a <= 1. && b >= 0. && b <= 1. && c >= 0. && c <= 1.

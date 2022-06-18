@@ -22,7 +22,7 @@ module Walls =
         vX = game.Camera.Direction.vX + game.Camera.Plane.vX * cameraX
         vY = game.Camera.Direction.vY + game.Camera.Plane.vY * cameraX
       }
-      let setup () = posX, posY, rayDirection
+      let setup () = false,posX, posY, rayDirection
       let terminator (isHit, _, _, mapX, mapY, _) =
         (not isHit) && (mapX >= 0 && mapX < game.Map.[0].Length && mapY >= 0 && mapY < game.Map.Length )
       let _, deltaDistX, deltaDistY, totalRayDistanceX, totalRayDistanceY, hitMapX, hitMapY, side =
@@ -101,18 +101,6 @@ module Walls =
     ) initialWallRenderResult
     
 module Objects =
-  let isPointInTriangle p1 p2 p3 testPoint  =
-    // barycentric coordinate approach
-    // https://stackoverflow.com/questions/40959754/c-sharp-is-the-point-in-triangle
-    let a =
-      ((p2.vY - p3.vY)*(testPoint.vX - p3.vX) + (p3.vX - p2.vX)*(testPoint.vY - p3.vY)) /
-      ((p2.vY - p3.vY)*(p1.vX - p3.vX) + (p3.vX - p2.vX)*(p1.vY - p3.vY))
-    let b =
-      ((p3.vY - p1.vY)*(testPoint.vX - p3.vX) + (p1.vX - p3.vX)*(testPoint.vY - p3.vY)) /
-      ((p2.vY - p3.vY)*(p1.vX - p3.vX) + (p3.vX - p2.vX)*(p1.vY - p3.vY))
-    let c = 1. - a - b
-    a >= 0. && a <= 1. && b >= 0. && b <= 1. && c >= 0. && c <= 1.
-    
   let draw width height getPixel setPixel isTransparent getSpriteOffsets game (sprites:Texture array) (wallRenderResult:WallRenderingResult) =
     let orientedSpriteIndex gameObject =
       match gameObject with
@@ -148,7 +136,7 @@ module Objects =
             let quadrantIndex =
               vectors
               |> FSharp.Collections.Array.tryFindIndex (fun (p2,p3) ->
-                isPointInTriangle p1 p2 p3 playerTestPoint
+                App.Ray.isPointInTriangle p1 p2 p3 playerTestPoint
               )
               |> Option.defaultValue 0
             //e.BasicGameObject.SpriteIndex + quadrantIndex

@@ -23,14 +23,15 @@ type Vector2D =
   static member (-) (a,b) = { vX = a.vX - b.vX ; vY = a.vY - b.vY }
   static member (+) (a,b) = { vX = a.vX + b.vX ; vY = a.vY + b.vY }
   static member (*) (a,b) = { vX = a.vX * b ; vY = a.vY * b }
+  static member (/) (a,b) = { vX = a.vX / b ; vY = a.vY / b }
   // we use this for sorting sprites, we don't need the square root
   member this.UnsquaredDistanceFrom (other:Vector2D) =
     ((this.vX - other.vX) * (this.vX - other.vX) + (this.vY - other.vY) * (this.vY - other.vY))
   member this.Normalize () =
     let distance = sqrt (this.vX * this.vX + this.vY * this.vY)
     { vX = this.vX / distance ; vY = this.vY / distance }
-  member this.Abs () =
-    { vX = abs this.vX ; vY = abs this.vY }
+  member this.Abs () = { vX = abs this.vX ; vY = abs this.vY }
+  member this.Reverse () = { vX = this.vX * -1. ; vY = this.vY * -1. }
   member this.Rotate (angle:float<radians>) =
     let ca = cos (float angle)
     let sa = sin (float angle)
