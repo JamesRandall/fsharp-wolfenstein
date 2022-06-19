@@ -194,6 +194,7 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
       let timeRemainingInAnimationFrame = enemy.TimeUntilNextAnimationFrame-frameTime
       if enemy.IsAlive then
         match enemy.State with
+        | EnemyStateType.Chase _
         | EnemyStateType.Path ->
           if timeRemainingInAnimationFrame < 0.<ms> then
             let nextFrame =

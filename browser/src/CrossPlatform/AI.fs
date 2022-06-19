@@ -1,8 +1,9 @@
 module App.AI
 open App.Model
 
+let private randomGenerator = System.Random ()
+
 module List =
-  let private randomGenerator = System.Random ()
   let random (values:'a list) =
     values.[randomGenerator.Next(0,values.Length)]
 
@@ -60,7 +61,7 @@ let canMove game (enemy:Enemy) (mapDirection:MapDirection) =
 // Chasing occurs on whole map units and the state is re-evaluated when we have completed the move
 // we may adopt this approach for path too (we may need to to break the path to shoot)
 // The logic is based on that in the original code - this can be found in the SelectChaseDir method in WL_STATE.C
-let chaseState (game:Game) (enemy:Enemy) =  
+let setupChaseState (game:Game) (enemy:Enemy) =  
   let turnaround = enemy.Direction.Reverse()
   let playerX,playerY = game.PlayerMapPosition
   let enemyX,enemyY = enemy.BasicGameObject.MapPosition
@@ -70,7 +71,7 @@ let chaseState (game:Game) (enemy:Enemy) =
   
   let dir =
     [|
-      if deltaX > 0 then MapDirection.East elif deltaX < 0 then MapDirection.West else MapDirection.None
+      if deltaX > 0 then MapDirection.West elif deltaX < 0 then MapDirection.East else MapDirection.None
       if deltaY > 0 then MapDirection.South elif deltaY < 0 then MapDirection.North else MapDirection.None
     |]
     |> (fun d -> if abs deltaY > abs deltaX then d |> Array.rev else d)
@@ -99,6 +100,83 @@ let chaseState (game:Game) (enemy:Enemy) =
   // we need to select a random direction if the updatedEnemy = None - todo
   defaultArg updatedEnemy enemy
   
+// Chasing occurs on whole map units and the state is re-evaluated when we have completed the move
+// we may adopt this approach for path too (we may need to to break the path to shoot)
+// The logic is based on that in the original code - this can be found in the SelectDodgeDir method in WL_STATE.C
+let setupChaseStateWithDodge (game:Game) (enemy:Enemy) =
+  let randomize (dt:MapDirection array) =
+    if randomGenerator.Next(255) < 128 then
+      [|
+        dt.[0]
+        dt.[2]
+        dt.[1]
+        dt.[4]
+        dt.[3]
+      |]
+    else
+      dt
+  let shuffle deltaX deltaY (dt:MapDirection array) =
+    let absDeltaX = abs deltaX
+    let absDeltaY = abs deltaY
+    if absDeltaX > absDeltaY then
+      [|
+        dt.[0]
+        dt.[2]
+        dt.[1]
+        dt.[4]
+        dt.[3]
+      |]
+    else
+      dt
+  let setDiagonal (dt:MapDirection array) =
+    [|
+      MapDirection.Diagonal dt.[1] dt.[2]
+      dt.[1]
+      dt.[2]
+      dt.[3]
+      dt.[4]
+    |]
+    
+  let turnaround = if enemy.IsFirstAttack then MapDirection.None else enemy.Direction.Reverse()
+  let playerX,playerY = game.PlayerMapPosition
+  let enemyX,enemyY = enemy.BasicGameObject.MapPosition
+  
+  let deltaX = playerX - enemyX
+  let deltaY = playerY - enemyY
+  
+  let directionOption =
+    [|
+      MapDirection.None
+      if deltaX > 0 then MapDirection.West else MapDirection.East
+      if deltaY > 0 then MapDirection.South else MapDirection.North
+      if deltaX > 0 then MapDirection.East else MapDirection.West
+      if deltaY > 0 then MapDirection.North else MapDirection.South
+    |]
+    |> shuffle deltaX deltaY
+    |> randomize
+    |> setDiagonal
+    |> Array.filter(fun direction ->
+      if direction = MapDirection.None || direction = turnaround then
+        false
+      else
+        canMove game enemy direction
+    )
+    |> Array.tryHead
+  
+  match directionOption with
+  | Some direction ->
+    let mapDeltaX,mapDeltaY = direction.ToDelta()
+    let posX,posY = enemy.BasicGameObject.MapPosition
+    let newX,newY = posX + mapDeltaX, posY + mapDeltaY
+    { enemy with Direction = direction ; State = EnemyStateType.Chase (newX,newY) }
+  | None -> enemy
+  
+let createChaseState canSeePlayer game enemy =
+  if canSeePlayer then
+    setupChaseStateWithDodge game enemy
+  else
+    setupChaseState game enemy
+  
 let getNextState canSeePlayer game enemy =
   match enemy.State, canSeePlayer with
   // Disabled to test patrolling
@@ -111,23 +189,37 @@ let getNextState canSeePlayer game enemy =
         fun () -> EnemyStateType.Chase (0,0)
       ] |> List.random
     ) ()*)
-    chaseState game enemy
+    createChaseState canSeePlayer game enemy
   | _ -> enemy
     
-let preProcess game enemy =
+let preProcess canSeePlayer game enemy =
   // preprocess looks for state changes based on the current game world state
-  let canSeePlayer = enemy |> isPlayerVisibleToEnemy game
   let newEnemy = enemy |> getNextState canSeePlayer game
   if newEnemy.State <> enemy.State then
     Utils.log $"Enemy at {enemy.BasicGameObject.Position.vX}, {enemy.BasicGameObject.Position.vY} moving from {enemy.State} to {newEnemy.State}"
   newEnemy
     
-let updateBasedOnCurrentState (frameTime:float<ms>) game enemy =
-  let enemyVelocityUnitsPerSecond = 0.75
-  
+let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) game enemy =
   // updates the enemy based on its state
   match enemy.State,enemy.DirectionVector with
+  | EnemyStateType.Chase (targetMapX, targetMapY), Some direction ->
+    let enemyVelocityUnitsPerSecond = 1.
+    let targetPosition = { vX = float targetMapX + 0.5 ; vY = float targetMapY + 0.5 }
+    let distanceToTarget = targetPosition - enemy.BasicGameObject.Position
+    let frameRateBasedDelta = (direction * (frameTime / 1000.<ms> * enemyVelocityUnitsPerSecond))
+    
+    // if we have further to travel than we need to update this frame based on our velocity then
+    // we continue to chase - alternatively if our velocity would take us past the target then we
+    // re-evaluate our chase state 
+    if distanceToTarget.Magnitude > frameRateBasedDelta.Magnitude then
+      let newPosition = enemy.BasicGameObject.Position + frameRateBasedDelta
+      { enemy with BasicGameObject = { enemy.BasicGameObject with Position = newPosition } }
+    else
+      { enemy with BasicGameObject = { enemy.BasicGameObject with Position = targetPosition } }
+      |> createChaseState canSeePlayer game
+    
   | EnemyStateType.Path, Some direction ->
+    let enemyVelocityUnitsPerSecond = 0.5
     // A character entering a turning point causes it to turn in the direction the turning point indicates.
     //
     // Fast moving characters and/or low framerates could cause a character to essentially "skip" over a square and
@@ -190,10 +282,10 @@ let applyAi frameTime game gameObject =
   match gameObject with
   | GameObject.Enemy enemy ->
     if enemy.IsAlive then
+      let canSeePlayer = enemy |> isPlayerVisibleToEnemy game
       enemy
-      |> preProcess game
-      // |> openDoorsInRange game
-      |> updateBasedOnCurrentState frameTime game
+      |> preProcess canSeePlayer game
+      |> updateBasedOnCurrentState canSeePlayer frameTime game
       |> GameObject.Enemy
     else
       gameObject

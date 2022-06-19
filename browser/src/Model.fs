@@ -62,6 +62,8 @@ module Direction =
 let radiansToDegrees (r:float<radians>) = r * 180.<degrees> / (System.Math.PI * 1.<radians>)
 let degreesToRadians (d:float<degrees>) = d * System.Math.PI / 180.<degrees> * 1.<radians> 
 
+exception MapDirectionException of string
+
 [<RequireQualifiedAccess>]
 type MapDirection =
   | North
@@ -73,6 +75,17 @@ type MapDirection =
   | West
   | NorthWest
   | None
+  static member Diagonal a b =
+    match a,b with
+    | East, North
+    | North, East -> NorthEast
+    | East, South
+    | South, East -> SouthEast
+    | West, South
+    | South, West -> SouthWest
+    | West, North
+    | North, West -> NorthWest
+    | _ -> raise (MapDirectionException $"No diagonal for {a},{b}")
   member x.ToDelta () =
     match x with
     | MapDirection.North -> 0,-1
@@ -204,6 +217,7 @@ type Enemy =
     CurrentAnimationFrame: int
     TimeUntilNextAnimationFrame: float<ms>
     State: EnemyStateType
+    IsFirstAttack: bool // shoud start at true and be set to false after first attack
   }
   member this.DirectionVector = this.Direction.ToVector()
   member this.StationarySpriteBlockIndex = this.BasicGameObject.SpriteIndex
@@ -213,10 +227,12 @@ type Enemy =
   member this.BaseSpriteIndexForState =
     match this.State with
     | EnemyStateType.Standing -> this.StationarySpriteBlockIndex
+    | EnemyStateType.Chase _
     | EnemyStateType.Path -> this.MovementSpriteBlockIndex this.CurrentAnimationFrame
     | _ -> this.BasicGameObject.SpriteIndex
   static member AnimationTimeForState state =
     match state with
+    | EnemyStateType.Chase _ -> 100.<ms>
     | EnemyStateType.Path -> 200.<ms>
     | _ -> 0.<ms>
   
