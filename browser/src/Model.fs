@@ -8,6 +8,7 @@ open App.PlatformModel
 [<Measure>] type radians
 [<Measure>] type degrees
 
+
 type WallRenderingResult =
   { ZIndexes: float list
     WallInFrontOfPlayer: int*int // x,y
@@ -47,8 +48,64 @@ type Vector2D =
       (a.vX * b.vX + a.vY * b.vY) / a.Magnitude * b.Magnitude
     ) * 1.<radians>
   
+module Direction =
+  // east and west directions are flipped due to our renderer
+  let north = { vX = 0. ; vY = -1. }
+  let northEast = { vX = -1. ; vY = -1. }.Normalize()
+  let east = { vX = -1. ; vY= 0. }
+  let southEast = { vX = -1. ; vY = 1. }.Normalize()
+  let south = { vX = 0. ; vY = 1. }
+  let southWest = { vX = 1. ; vY = 1. }.Normalize()
+  let west = { vX = 1. ; vY = 0. }
+  let northWest = { vX = 1.; vY = -1. }.Normalize()
+  
 let radiansToDegrees (r:float<radians>) = r * 180.<degrees> / (System.Math.PI * 1.<radians>)
 let degreesToRadians (d:float<degrees>) = d * System.Math.PI / 180.<degrees> * 1.<radians> 
+
+[<RequireQualifiedAccess>]
+type MapDirection =
+  | North
+  | NorthEast
+  | East
+  | SouthEast
+  | South
+  | SouthWest
+  | West
+  | NorthWest
+  | None
+  member x.ToDelta () =
+    match x with
+    | MapDirection.North -> 0,-1
+    | MapDirection.NorthEast -> -1,-1
+    | MapDirection.East -> -1,0
+    | MapDirection.SouthEast -> -1,1
+    | MapDirection.South -> 0,1
+    | MapDirection.SouthWest -> 1,1
+    | MapDirection.West -> 1,0
+    | MapDirection.NorthWest -> 1,-1
+    | MapDirection.None -> 0,0
+  member x.ToVector () =
+    match x with
+    | MapDirection.North -> Some Direction.north
+    | MapDirection.NorthEast -> Some Direction.northEast
+    | MapDirection.East -> Some Direction.east
+    | MapDirection.SouthEast -> Some Direction.southEast
+    | MapDirection.South -> Some Direction.south
+    | MapDirection.SouthWest -> Some Direction.southWest
+    | MapDirection.West -> Some Direction.west
+    | MapDirection.NorthWest -> Some Direction.northWest
+    | MapDirection.None -> Option.None
+  member x.Reverse () =
+    match x with
+    | MapDirection.North -> MapDirection.South
+    | MapDirection.NorthEast -> MapDirection.SouthWest
+    | MapDirection.East -> MapDirection.West
+    | MapDirection.SouthEast -> MapDirection.NorthWest
+    | MapDirection.South -> MapDirection.North
+    | MapDirection.SouthWest -> MapDirection.NorthEast
+    | MapDirection.West -> MapDirection.East
+    | MapDirection.NorthWest -> MapDirection.SouthEast
+    | MapDirection.None -> MapDirection.None
 
 [<RequireQualifiedAccess>]
 type Side =
@@ -95,7 +152,7 @@ type DoorState =
 type Cell =
   | Wall of Wall
   | Door of int // index of the door in the doors array
-  | TurningPoint of Vector2D
+  | TurningPoint of MapDirection
   | Empty
   
 type EnemyType =
@@ -121,7 +178,7 @@ type EnemyStateType =
   | Path
   | Pain
   | Shoot
-  | Chase
+  | Chase of int*int // co-ordinates we are moving to as part of the chase
   | Die
   | Dead
     
@@ -132,11 +189,14 @@ type BasicGameObject =
     SpriteIndex: int
     CollidesWithBullets: bool
   }
+  member this.MapPosition = (int this.Position.vX),(int this.Position.vY)
+
 
 type Enemy =
   { EnemyType: EnemyType
     BasicGameObject: BasicGameObject
-    DirectionVector: Vector2D option
+    Direction: MapDirection
+    //DirectionVector: Vector2D option
     DeathSpriteIndexes: int list
     AttackSpriteIndexes: int list
     SpriteBlocks: int
@@ -145,6 +205,7 @@ type Enemy =
     TimeUntilNextAnimationFrame: float<ms>
     State: EnemyStateType
   }
+  member this.DirectionVector = this.Direction.ToVector()
   member this.StationarySpriteBlockIndex = this.BasicGameObject.SpriteIndex
   member this.MovementSpriteBlockIndex frame = this.BasicGameObject.SpriteIndex + frame*this.FramesPerBlock
   member this.NumberOfAnimationFrames = this.SpriteBlocks - 1
@@ -250,18 +311,8 @@ type Game =
     TimeToNextWeaponFrame: float<ms> option
     Doors: DoorState list
   }
+  member this.PlayerMapPosition = (int this.Camera.Position.vX),(int this.Camera.Position.vY)
   
-module Direction =
-  // east and west directions are flipped due to our renderer
-  let north = { vX = 0. ; vY = -1. }
-  let northEast = { vX = -1. ; vY = -1. }.Normalize()
-  let east = { vX = -1. ; vY= 0. }
-  let southEast = { vX = -1. ; vY = 1. }.Normalize()
-  let south = { vX = 0. ; vY = 1. }
-  let southWest = { vX = 1. ; vY = 1. }.Normalize()
-  let west = { vX = 1. ; vY = 0. }
-  let northWest = { vX = 1.; vY = -1. }.Normalize()
-
 let textureWidth = 64.
 let textureHeight = 64.
 // this is the width around the center of the screen that is included in the hit detection when a weapon is fired

@@ -151,21 +151,21 @@ let loadLevelFromRawMap (raw:RawMap) =
             let objectValue = getPlaneValue raw.Plane1 colIndex rowIndex
             let cell =
               if objectValue = 0x5Aus then
-                Cell.TurningPoint Direction.east
+                Cell.TurningPoint MapDirection.East
               elif objectValue = 0x5Bus then
-                Cell.TurningPoint Direction.northEast
+                Cell.TurningPoint MapDirection.NorthEast
               elif objectValue = 0x5Cus then
-                Cell.TurningPoint Direction.north
+                Cell.TurningPoint MapDirection.North
               elif objectValue = 0x5Dus then
-                Cell.TurningPoint Direction.northWest
+                Cell.TurningPoint MapDirection.NorthWest
               elif objectValue = 0x5Eus then
-                Cell.TurningPoint Direction.west
+                Cell.TurningPoint MapDirection.West
               elif objectValue = 0x5Fus then
-                Cell.TurningPoint Direction.southWest
+                Cell.TurningPoint MapDirection.SouthWest
               elif objectValue = 0x60us then
-                Cell.TurningPoint Direction.south
+                Cell.TurningPoint MapDirection.South
               elif objectValue = 0x61us then
-                Cell.TurningPoint Direction.southEast
+                Cell.TurningPoint MapDirection.SouthEast
               else
                 Cell.Empty
             row @ [cell], innerDoors
@@ -210,6 +210,18 @@ let loadLevelFromRawMap (raw:RawMap) =
     | 2us -> { vX = 1. ; vY = 0. } // west - but we have to flip horizontal later so east here
     | 3us -> { vX = 0. ; vY = 1. } // moving south
     | _ -> raise (MapLoadException $"Direction of {direction} int not between 0 and 3")
+    
+  let startingMapDirectionFromInt directionOption =
+    match directionOption with
+    | Some direction ->
+      match direction with
+      | 0us -> MapDirection.East
+      | 1us -> MapDirection.North
+      | 2us -> MapDirection.West
+      | 3us -> MapDirection.South
+      | _ -> raise (MapLoadException $"Direction of {direction} int not between 0 and 3")
+    | None -> MapDirection.None
+    
   
   let standingOrMoving baseValue value =
     if value-baseValue < 4us then EnemyStateType.Standing else EnemyStateType.Path
@@ -225,7 +237,8 @@ let loadLevelFromRawMap (raw:RawMap) =
           UnsquaredDistanceFromPlayer = position.UnsquaredDistanceFrom playerStartingPosition.Position
           CollidesWithBullets = true
         }
-        DirectionVector = directionIntOption |> Option.map startingDirectionVectorFromInt
+        Direction = directionIntOption |> startingMapDirectionFromInt
+        //DirectionVector = directionIntOption |> Option.map startingDirectionVectorFromInt
         State = startingState
         DeathSpriteIndexes = deathSprites
         AttackSpriteIndexes = attackingSprites

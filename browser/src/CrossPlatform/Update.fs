@@ -224,7 +224,7 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
         | _ ->
           match enemy.State,enemy.DirectionVector with
           | EnemyStateType.Path, Some direction
-          | EnemyStateType.Chase, Some direction ->
+          | EnemyStateType.Chase _, Some direction ->
             let maxDistanceToCheck = direction.Normalize().Abs()*rangeToOpenDoorsAt
             let setup () = false, enemy.BasicGameObject.Position.vX, enemy.BasicGameObject.Position.vY, direction
             let terminator (isHit, currentRayDistanceX, currentRayDistanceY, mapX, mapY, _) =

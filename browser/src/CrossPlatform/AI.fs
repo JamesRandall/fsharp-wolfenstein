@@ -45,48 +45,82 @@ let isPlayerVisibleToEnemy game (enemy:Enemy) =
   else
     false
   
-(*
-let chaseDirection game enemy =
-  let reverseDirection = enemy.BasicGameObject.Position.Reverse()
-  let delta = game.Camera.Position - enemy.BasicGameObject.Position
-  let candidateDirection =
-    let dir1 =
-      { vX = if delta.vX > 0 then Direction.east.vX else Direction.west.vX
-        vY = if delta.vY > 0 then Direction.south.vY else Direction.south.vY
-      }
-    let dir2 =
-      if abs delta.vY > abs delta.vX then
-        { vX = testDirection.vY ; vY = testDirection.vX }
-      else
-        testDirection
-    { vX = if dir2.vX = reverseDirection.vX then 0. else dir2.vX
-      vY = if dir2.vY = reverseDirection.vY then 0. else dir2.vY
-    }
-*)
+let canMove game (enemy:Enemy) (mapDirection:MapDirection) =
+  let deltaX,deltaY = mapDirection.ToDelta()
+  let posX,posY = enemy.BasicGameObject.MapPosition
+  let newX,newY = posX + deltaX, posY + deltaY
+  if newX < 0 || newX > 63 || newY < 0 || newY > 63 then
+    false
+  else
+    let cell = game.Map.[newY].[newX]
+    match cell with
+    | Cell.Wall _ -> false
+    | _ -> true
   
-let getNextState canSeePlayer enemy =
+// Chasing occurs on whole map units and the state is re-evaluated when we have completed the move
+// we may adopt this approach for path too (we may need to to break the path to shoot)
+// The logic is based on that in the original code - this can be found in the SelectChaseDir method in WL_STATE.C
+let chaseState (game:Game) (enemy:Enemy) =  
+  let turnaround = enemy.Direction.Reverse()
+  let playerX,playerY = game.PlayerMapPosition
+  let enemyX,enemyY = enemy.BasicGameObject.MapPosition
+  
+  let deltaX = playerX - enemyX
+  let deltaY = playerY - enemyY
+  
+  let dir =
+    [|
+      if deltaX > 0 then MapDirection.East elif deltaX < 0 then MapDirection.West else MapDirection.None
+      if deltaY > 0 then MapDirection.South elif deltaY < 0 then MapDirection.North else MapDirection.None
+    |]
+    |> (fun d -> if abs deltaY > abs deltaX then d |> Array.rev else d)
+    |> Array.map (fun d -> if d = turnaround then MapDirection.None else d)
+  
+  let updatedEnemy =
+    if dir.[0] <> MapDirection.None then
+      if canMove game enemy dir.[0] then
+        let mapDeltaX,mapDeltaY = dir.[0].ToDelta()
+        let posX,posY = enemy.BasicGameObject.MapPosition
+        let newX,newY = posX + mapDeltaX, posY + mapDeltaY
+        Some { enemy with Direction = dir.[0] ; State = EnemyStateType.Chase (newX,newY) }
+      else
+        None
+    elif dir.[1] <> MapDirection.None then
+      if canMove game enemy dir.[1] then
+        let mapDeltaX,mapDeltaY = dir.[1].ToDelta()
+        let posX,posY = enemy.BasicGameObject.MapPosition
+        let newX,newY = posX + mapDeltaX, posY + mapDeltaY
+        Some { enemy with Direction = dir.[1] ; State = EnemyStateType.Chase (newX,newY) }
+      else
+        None
+    else
+      None
+  
+  // we need to select a random direction if the updatedEnemy = None - todo
+  defaultArg updatedEnemy enemy
+  
+let getNextState canSeePlayer game enemy =
   match enemy.State, canSeePlayer with
   // Disabled to test patrolling
   //| EnemyStateType.Path, true
   | EnemyStateType.Standing, true
   | EnemyStateType.Ambushing, true ->
-    (
+    (*(
       [
         fun () -> EnemyStateType.Attack
-        fun () -> EnemyStateType.Chase
+        fun () -> EnemyStateType.Chase (0,0)
       ] |> List.random
-    ) ()
-  | _ -> enemy.State
+    ) ()*)
+    chaseState game enemy
+  | _ -> enemy
     
 let preProcess game enemy =
   // preprocess looks for state changes based on the current game world state
   let canSeePlayer = enemy |> isPlayerVisibleToEnemy game
-  let newState = enemy |> getNextState canSeePlayer
-  if newState <> enemy.State then
-    Utils.log $"Enemy at {enemy.BasicGameObject.Position.vX}, {enemy.BasicGameObject.Position.vY} moving from {enemy.State} to {newState}"
-    { enemy with State = newState }
-  else
-    enemy
+  let newEnemy = enemy |> getNextState canSeePlayer game
+  if newEnemy.State <> enemy.State then
+    Utils.log $"Enemy at {enemy.BasicGameObject.Position.vX}, {enemy.BasicGameObject.Position.vY} moving from {enemy.State} to {newEnemy.State}"
+  newEnemy
     
 let updateBasedOnCurrentState (frameTime:float<ms>) game enemy =
   let enemyVelocityUnitsPerSecond = 0.75
@@ -117,7 +151,7 @@ let updateBasedOnCurrentState (frameTime:float<ms>) game enemy =
     let isHit, isWallHit, hitMapX, hitMapY =
       match game.Map.[int newPosition.vY].[int newPosition.vX] with
       | Cell.TurningPoint tpDirection ->
-        if tpDirection = direction then
+        if tpDirection = enemy.Direction then
           false, false, int newPosition.vX, int newPosition.vY
         else
           true, false, int newPosition.vX, int newPosition.vY
@@ -138,20 +172,20 @@ let updateBasedOnCurrentState (frameTime:float<ms>) game enemy =
         if distanceToNewPosition >= existingDistanceToTurningPoint then       
           (match game.Map.[hitMapY].[hitMapX] with
           | Cell.TurningPoint newDirection -> newDirection
-          | Cell.Door _ -> direction // if we hit a door keep walking, doors get opened by any characters heading towards them
-          | _ -> direction.Reverse())
+          | Cell.Door _ -> enemy.Direction // if we hit a door keep walking, doors get opened by any characters heading towards them
+          | _ -> enemy.Direction.Reverse())
           ,{ vX = float hitMapX + 0.5 ; vY = float hitMapY + 0.5 }
         else
-          direction,newPosition
-      | true, true -> direction.Reverse(),{ vX = float hitMapX + 0.5 ; vY = float hitMapY + 0.5 }
-      | _ -> direction,newPosition
+          enemy.Direction,newPosition
+      | true, true -> enemy.Direction.Reverse(),{ vX = float hitMapX + 0.5 ; vY = float hitMapY + 0.5 }
+      | _ -> enemy.Direction,newPosition
         
     { enemy with
         BasicGameObject = { enemy.BasicGameObject with Position = finalPosition }
-        DirectionVector = Some newDirection
+        Direction = newDirection
     }
   | _ -> enemy
-
+    
 let applyAi frameTime game gameObject =
   match gameObject with
   | GameObject.Enemy enemy ->
