@@ -224,8 +224,9 @@ let createChaseState canSeePlayer game enemy =
   
 let getNextState canSeePlayer game enemy =
   match enemy.State, canSeePlayer with
-  // Disabled to test patrolling
-  //| EnemyStateType.Path, true
+  // bug in this at the moment - we can't move out of a path state here as we can only swap state when we are on
+  // the center of a tile - i.e. movement is unit based and the AI is aligned with that
+  //| EnemyStateType.Path, true // comment this line out to test patrolling without it being interrupted
   | EnemyStateType.Standing, true
   | EnemyStateType.Ambushing, true ->
     (*(
