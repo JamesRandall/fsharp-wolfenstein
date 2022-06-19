@@ -47,16 +47,23 @@ let isPlayerVisibleToEnemy game (enemy:Enemy) =
     false
   
 let canMove game (enemy:Enemy) (mapDirection:MapDirection) =
-  let deltaX,deltaY = mapDirection.ToDelta()
-  let posX,posY = enemy.BasicGameObject.MapPosition
-  let newX,newY = posX + deltaX, posY + deltaY
-  if newX < 0 || newX > 63 || newY < 0 || newY > 63 then
+  if mapDirection = MapDirection.None then
     false
   else
-    let cell = game.Map.[newY].[newX]
-    match cell with
-    | Cell.Wall _ -> false
-    | _ -> true
+    let deltaX,deltaY = mapDirection.ToDelta()
+    let posX,posY = enemy.BasicGameObject.MapPosition
+    let newX,newY = posX + deltaX, posY + deltaY
+    
+    //Utils.log $"posx: {posX}, posy: {posY}, newx: {newX}, newy: {newY}, dir: {mapDirection}"
+    
+    if newX < 0 || newX > 63 || newY < 0 || newY > 63 then
+      false
+    else
+      let cell = game.Map.[newY].[newX]
+      match cell with
+      | Cell.Wall _ ->
+        false
+      | _ -> true
   
 // Chasing occurs on whole map units and the state is re-evaluated when we have completed the move
 // we may adopt this approach for path too (we may need to to break the path to shoot)
@@ -69,6 +76,8 @@ let setupChaseState (game:Game) (enemy:Enemy) =
   let deltaX = playerX - enemyX
   let deltaY = playerY - enemyY
   
+  Utils.log $"Setting up chase state: {enemyX}, {enemyY}"
+  
   let dir =
     [|
       if deltaX > 0 then MapDirection.West elif deltaX < 0 then MapDirection.East else MapDirection.None
@@ -76,29 +85,65 @@ let setupChaseState (game:Game) (enemy:Enemy) =
     |]
     |> (fun d -> if abs deltaY > abs deltaX then d |> Array.rev else d)
     |> Array.map (fun d -> if d = turnaround then MapDirection.None else d)
+    
+  let updateEnemy (withDirection:MapDirection) =
+    let mapDeltaX,mapDeltaY = withDirection.ToDelta()
+    let posX,posY = enemy.BasicGameObject.MapPosition
+    let newX,newY = posX + mapDeltaX, posY + mapDeltaY
+    { enemy with Direction = withDirection ; State = EnemyStateType.Chase (newX,newY) }
   
-  let updatedEnemy =
-    if dir.[0] <> MapDirection.None then
-      if canMove game enemy dir.[0] then
-        let mapDeltaX,mapDeltaY = dir.[0].ToDelta()
-        let posX,posY = enemy.BasicGameObject.MapPosition
-        let newX,newY = posX + mapDeltaX, posY + mapDeltaY
-        Some { enemy with Direction = dir.[0] ; State = EnemyStateType.Chase (newX,newY) }
-      else
-        None
-    elif dir.[1] <> MapDirection.None then
-      if canMove game enemy dir.[1] then
-        let mapDeltaX,mapDeltaY = dir.[1].ToDelta()
-        let posX,posY = enemy.BasicGameObject.MapPosition
-        let newX,newY = posX + mapDeltaX, posY + mapDeltaY
-        Some { enemy with Direction = dir.[1] ; State = EnemyStateType.Chase (newX,newY) }
-      else
-        None
+  
+  // all the below needs tidying up, pretty ugly but it helped me mirror the logic as it is implemented in C
+  let onNone func optionValue =
+    match optionValue with
+    | Some value -> Some value
+    | None -> func ()
+  
+  (
+    // try and move in the primary direction
+    if canMove game enemy dir.[0] then
+      Some (updateEnemy dir.[0])
     else
       None
-  
-  // we need to select a random direction if the updatedEnemy = None - todo
-  defaultArg updatedEnemy enemy
+  )
+  |> onNone (fun () ->
+    // try and move in the secondary direction
+    if canMove game enemy dir.[1] then
+      Some (updateEnemy dir.[1])
+    else
+      None      
+  )
+  |> onNone (fun () ->
+    // try and move in the currently set direction
+    if canMove game enemy enemy.Direction then
+      Some (updateEnemy enemy.Direction)
+    else
+      None
+  )
+  |> onNone (fun () ->
+    // randomly determine a direction - note that Wolfenstein only seems to search north, northwest and west
+    let randomize values = if randomGenerator.Next(255) > 128 then values else values |> List.rev
+    [ MapDirection.North ; MapDirection.NorthWest ; MapDirection.West ]
+    |> randomize
+    |> List.filter(fun direction -> canMove game enemy direction)
+    |> List.tryHead
+    |> Option.map(fun direction -> (updateEnemy direction))
+  )
+  |> onNone (fun () ->
+    if canMove game enemy turnaround then
+      Some (updateEnemy turnaround)
+    else
+      None
+  )
+  |> Option.defaultWith(fun () ->
+    { enemy with Direction = MapDirection.None ; State = EnemyStateType.Standing }
+  )
+  (* this can be a handy diagnostic if you want to know what a chase state has been set to 
+  |> (fun newEnemy ->
+    Utils.log $"Set up chase state. Direction: {newEnemy.Direction}, Target: {newEnemy.State}"
+    newEnemy
+  )
+  *)
   
 // Chasing occurs on whole map units and the state is re-evaluated when we have completed the move
 // we may adopt this approach for path too (we may need to to break the path to shoot)

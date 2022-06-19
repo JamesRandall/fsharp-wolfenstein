@@ -276,7 +276,7 @@ let loadLevelFromRawMap (raw:RawMap) =
         elif value >= 108us then
           // useful for debugging if you want a single enemy
           // find their location in maped42 and enter the co-ordinates below 
-          //if colIndex = 59 && rowIndex = 44 then
+          //if colIndex = 39 && rowIndex = 61 then
             let enemy =
               // guards
               // TODO: tidy this up, crying out for a pipeline
