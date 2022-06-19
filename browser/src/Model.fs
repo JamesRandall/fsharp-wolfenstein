@@ -204,7 +204,8 @@ type BasicGameObject =
   }
   member this.MapPosition = (int this.Position.vX),(int this.Position.vY)
 
-
+// TODO: I need to do some clean up in here now I know how the sprites work - we have two types, the movement block based
+// ones and indexed movement ones. Needs rationalising.
 type Enemy =
   { EnemyType: EnemyType
     BasicGameObject: BasicGameObject
@@ -222,19 +223,32 @@ type Enemy =
   member this.DirectionVector = this.Direction.ToVector()
   member this.StationarySpriteBlockIndex = this.BasicGameObject.SpriteIndex
   member this.MovementSpriteBlockIndex frame = this.BasicGameObject.SpriteIndex + frame*this.FramesPerBlock
-  member this.NumberOfAnimationFrames = this.SpriteBlocks - 1
+  member this.NumberOfMovementAnimationFrames = this.SpriteBlocks - 1
   member this.IsAlive = match this.State with | EnemyStateType.Dead | EnemyStateType.Die -> false | _ -> true
   member this.BaseSpriteIndexForState =
     match this.State with
     | EnemyStateType.Standing -> this.StationarySpriteBlockIndex
     | EnemyStateType.Chase _
     | EnemyStateType.Path -> this.MovementSpriteBlockIndex this.CurrentAnimationFrame
+    | EnemyStateType.Attack -> this.AttackSpriteIndexes.[this.CurrentAnimationFrame]
     | _ -> this.BasicGameObject.SpriteIndex
   static member AnimationTimeForState state =
     match state with
+    | EnemyStateType.Attack -> 200.<ms>
     | EnemyStateType.Chase _ -> 100.<ms>
     | EnemyStateType.Path -> 200.<ms>
+    | EnemyStateType.Dead | EnemyStateType.Die -> 100.<ms>
     | _ -> 0.<ms>
+  member this.SpriteIndexForAnimationFrame =
+    match this.State with
+    | EnemyStateType.Attack -> this.AttackSpriteIndexes.[this.CurrentAnimationFrame]
+    | EnemyStateType.Dead | EnemyStateType.Die -> this.DeathSpriteIndexes.[this.CurrentAnimationFrame]
+    | _ -> this.StationarySpriteBlockIndex
+  member this.AnimationFrames =
+    match this.State with
+    | EnemyStateType.Attack -> this.AttackSpriteIndexes.Length
+    | EnemyStateType.Dead | EnemyStateType.Die -> this.DeathSpriteIndexes.Length
+    | _ -> 1
   
 [<RequireQualifiedAccess>]
 type WeaponType =
@@ -333,4 +347,4 @@ let textureWidth = 64.
 let textureHeight = 64.
 // this is the width around the center of the screen that is included in the hit detection when a weapon is fired
 let firingTolerance = 40
-let deathAnimationFrameTime = 100.<ms>
+let attackAnimationFrameTime = 200.<ms>

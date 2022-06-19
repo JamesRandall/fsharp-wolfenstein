@@ -177,7 +177,7 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
               { e with
                   State = EnemyStateType.Die
                   CurrentAnimationFrame = 0
-                  TimeUntilNextAnimationFrame = deathAnimationFrameTime
+                  TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState EnemyStateType.Die
                   BasicGameObject = { e.BasicGameObject with CollidesWithBullets = false }
               }
             else
@@ -192,26 +192,32 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
     match gameObject with
     | GameObject.Enemy enemy ->
       let timeRemainingInAnimationFrame = enemy.TimeUntilNextAnimationFrame-frameTime
-      if enemy.IsAlive then
-        match enemy.State with
-        | EnemyStateType.Chase _
-        | EnemyStateType.Path ->
+      match enemy.State with
+      | EnemyStateType.Attack
+      | EnemyStateType.Dead
+      | EnemyStateType.Die ->
+        if enemy.CurrentAnimationFrame < enemy.AnimationFrames-1 then
           if timeRemainingInAnimationFrame < 0.<ms> then
-            let nextFrame =
-              if enemy.CurrentAnimationFrame + 1 > enemy.NumberOfAnimationFrames then 0 else enemy.CurrentAnimationFrame + 1
-            let timeUntilNextFrame = (Enemy.AnimationTimeForState enemy.State) + timeRemainingInAnimationFrame
-            { enemy with CurrentAnimationFrame = nextFrame ; TimeUntilNextAnimationFrame = timeUntilNextFrame  } |> GameObject.Enemy
-          else
-            { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
-        | _ -> enemy |> GameObject.Enemy
-      else
-        if enemy.CurrentAnimationFrame < enemy.DeathSpriteIndexes.Length-1 then
-          if timeRemainingInAnimationFrame < 0.<ms> then
-            { enemy with CurrentAnimationFrame = enemy.CurrentAnimationFrame+1 ; TimeUntilNextAnimationFrame = deathAnimationFrameTime + timeRemainingInAnimationFrame  } |> GameObject.Enemy
+            { enemy with
+                CurrentAnimationFrame = enemy.CurrentAnimationFrame+1
+                TimeUntilNextAnimationFrame = (Enemy.AnimationTimeForState enemy.State) + timeRemainingInAnimationFrame } |> GameObject.Enemy
           else
             { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
         else
-          enemy |> GameObject.Enemy
+          match enemy.State with
+          | EnemyStateType.Attack ->
+            { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
+          | _ -> enemy |> GameObject.Enemy
+      | EnemyStateType.Chase _
+      | EnemyStateType.Path ->
+        if timeRemainingInAnimationFrame < 0.<ms> then
+          let nextFrame =
+            if enemy.CurrentAnimationFrame + 1 > enemy.NumberOfMovementAnimationFrames then 0 else enemy.CurrentAnimationFrame + 1
+          let timeUntilNextFrame = (Enemy.AnimationTimeForState enemy.State) + timeRemainingInAnimationFrame
+          { enemy with CurrentAnimationFrame = nextFrame ; TimeUntilNextAnimationFrame = timeUntilNextFrame  } |> GameObject.Enemy
+        else
+          { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
+      | _ -> enemy |> GameObject.Enemy
     | _ -> gameObject
     
   let openDoorsInRangeOfEnemies game =

@@ -122,7 +122,6 @@ let playSoundEffectAtVolume volume soundEffect =
   | true,player -> player volume
   | _ -> Utils.log $"Missing sound effect {soundEffect}"
   
-
 let playSoundEffect soundEffect = playSoundEffectAtVolume 100. soundEffect
 
 let playRandomEnemyDeathSoundEffectAtVolume volume =

@@ -216,9 +216,35 @@ let setupChaseStateWithDodge (game:Game) (enemy:Enemy) =
     { enemy with Direction = direction ; State = EnemyStateType.Chase (newX,newY) }
   | None -> enemy
   
-let createChaseState canSeePlayer game enemy =
+let createAttackState game enemy =
+  { enemy with
+      State = EnemyStateType.Attack
+      CurrentAnimationFrame = 0
+      Direction = MapDirection.None
+      TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState EnemyStateType.Attack
+      IsFirstAttack = false
+  }
+  
+let createChaseState canSeePlayer (game:Game) enemy =
   if canSeePlayer then
-    setupChaseStateWithDodge game enemy
+    let enemyX, enemyY = enemy.BasicGameObject.MapPosition
+    let playerX, playerY = game.PlayerMapPosition
+    let absDeltaX = abs (enemyX - playerX)
+    let absDeltaY = abs (enemyY - playerY)
+    let distance = if absDeltaX > absDeltaY then absDeltaX else absDeltaY
+    let shouldShoot =
+      // original source: if (!dist || (dist==1 && ob->distance<0x4000) )
+      // not yet sure what that second part is about
+      if enemy.State = EnemyStateType.Attack then
+        false // attack never follows attack
+      elif distance = 0 then 
+        true
+      else
+        randomGenerator.Next(255) < 255 / distance
+    if shouldShoot then
+      createAttackState game enemy
+    else
+      setupChaseStateWithDodge game enemy
   else
     setupChaseState game enemy
   
@@ -236,6 +262,13 @@ let getNextState canSeePlayer game enemy =
       ] |> List.random
     ) ()*)
     createChaseState canSeePlayer game enemy
+  | EnemyStateType.Attack, _ ->
+    // the frame time can only drop below zero when we have gone past the last frame and so we use
+    // this to detect if we need to move back to the chase state
+    if enemy.TimeUntilNextAnimationFrame < 0.<ms> then
+      createChaseState canSeePlayer game enemy
+    else
+      enemy
   | _ -> enemy
     
 let preProcess canSeePlayer game enemy =
