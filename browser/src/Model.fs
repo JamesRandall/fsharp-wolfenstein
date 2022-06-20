@@ -47,6 +47,10 @@ type Vector2D =
     System.Math.Acos(
       (a.vX * b.vX + a.vY * b.vY) / a.Magnitude * b.Magnitude
     ) * 1.<radians>
+  member v.LimitToMapUnit _ =
+    { vX = if v.vX > 1. then 1. elif v.vX < -1. then -1. else v.vX
+      vY = if v.vY > 1. then 1. elif v.vY < -1. then -1. else v.vY
+    }
   
 module Direction =
   // east and west directions are flipped due to our renderer
@@ -342,6 +346,14 @@ type Game =
     Doors: DoorState list
   }
   member this.PlayerMapPosition = (int this.Camera.Position.vX),(int this.Camera.Position.vY)
+  
+type StatusBarGraphics =
+  { Background: Texture
+    HealthFaces: Texture array array
+    Dead: Texture
+    GrinFace: Texture
+    GreyFace: Texture
+  }
   
 let textureWidth = 64.
 let textureHeight = 64.

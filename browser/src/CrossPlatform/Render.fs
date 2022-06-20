@@ -216,3 +216,7 @@ module Weapons =
     let xPos = canvasWidth/2. - height/2.
     let weapon = game.Player.Weapons.[game.Player.CurrentWeaponIndex]
     drawImage weapon.CurrentSprite xPos 0. height height
+
+module StatusBar =
+  let drawStatusBar (statusBarGraphics:StatusBarGraphics) drawImage game =
+    drawImage statusBarGraphics.Background 0. 0. (float statusBarGraphics.Background.Width*4.) (float statusBarGraphics.Background.Height*4.) 

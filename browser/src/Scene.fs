@@ -9,8 +9,51 @@ open Fable.Core.JsInterop
 open App.Render
 open App.PlatformModel
 
-let draw (context:CanvasRenderingContext2D) (bufferContextOption:CanvasRenderingContext2D option) graphics sprites game  =
-  let startTime = performance.now ()
+let private viewportZoom = 2.
+let private zoom = 2.
+let private wolfViewportWidth = 304.
+let private wolfViewportHeight = 152.
+
+let private getViewportPosition (context:CanvasRenderingContext2D) =
+  let totalZoomedWidth = wolfViewportWidth * zoom * viewportZoom
+  let left = context.canvas.width / 2. - totalZoomedWidth / 2.
+  
+  let totalZoomedHeight = wolfViewportHeight * zoom * viewportZoom
+  let statusBarHeight = 35. * zoom * viewportZoom
+  let statusBarViewportSpace = round (statusBarHeight / 5.)
+  let totalHeight = totalZoomedHeight + statusBarHeight + statusBarViewportSpace
+  
+  let top = max left (context.canvas.height/2. - totalHeight/2.)
+  
+  
+  left,top,(top+totalZoomedHeight+statusBarViewportSpace),totalZoomedWidth,totalZoomedHeight
+
+let private drawFrame (context:CanvasRenderingContext2D) =
+  context.fillStyle <- ("#004040" |> U3.Case1)
+  context.fillRect(0, 0, context.canvas.width, context.canvas.height)
+  
+  let left, top, statusBarTop,totalZoomedWidth, totalZoomedHeight = getViewportPosition context
+  let left = left-1.
+  let top = top-1.
+  
+  // bottom right
+  context.strokeStyle <- ("#007070" |> U3.Case1)
+  context.beginPath()
+  context.moveTo(left, top + totalZoomedHeight+1.)
+  context.lineTo(left + totalZoomedWidth+1.,top + totalZoomedHeight+1.)
+  context.lineTo(left + totalZoomedWidth+1., top)
+  context.stroke()
+  // top left
+  context.lineCap <- "square"
+  context.strokeStyle <- ("#000000" |> U3.Case1)
+  context.beginPath()
+  context.moveTo(left, top + totalZoomedHeight+1.)
+  context.lineTo(left, top)
+  context.lineTo(left + totalZoomedWidth+1.5, top)
+  context.stroke()
+
+let draw (context:CanvasRenderingContext2D) (bufferContext:CanvasRenderingContext2D) statusBarGraphics graphics sprites game  =
+  //let startTime = performance.now ()
   
   context.save ()
   context?imageSmoothingEnabled <- false // bufferContextOption |> Option.isSome
@@ -18,7 +61,7 @@ let draw (context:CanvasRenderingContext2D) (bufferContextOption:CanvasRendering
   context.translate(0.5,0.5)
   context.font <- "30px Consolas, Menlo, monospace"
   
-  let bufferContext = defaultArg bufferContextOption context
+  
   bufferContext?imageSmoothingEnabled <- false
   let viewportWidth = bufferContext.canvas.width
   let viewportHeight = bufferContext.canvas.height
@@ -32,6 +75,7 @@ let draw (context:CanvasRenderingContext2D) (bufferContextOption:CanvasRendering
   let outputTexture = {
     Data = Constructors.Uint32Array.Create(outputImageData.data.buffer)
     ClampedData = Constructors.Uint8ClampedArray.Create(outputImageData.data.buffer)
+    SourceCanvas = bufferContext.canvas
     Width = int viewportWidth
     Height = int viewportHeight
   }
@@ -47,41 +91,45 @@ let draw (context:CanvasRenderingContext2D) (bufferContextOption:CanvasRendering
     game
     |> Walls.draw viewportWidth viewportHeight setPixel getTextureStripOffset getTextureColor
     |> Objects.draw viewportWidth viewportHeight getPixel setPixel isTransparent getSpriteOffsets game sprites
+  drawFrame context
+  let left, top, statusBarTop, _, _ = getViewportPosition context
+    
+  let imageData = Graphics.createImageData outputTexture.ClampedData outputTexture.Width outputTexture.Height
+  bufferContext.putImageData(imageData, 0., 0.)
+  // we draw the weapon directly on the buffer context - it doesn't have any relation to other objects in the frame
+  // and by rendering it here we can take advantage of the speed of drawImage (compared to pixel by pixel manipulation)
+  // and as its big (height of the context) this is quite an optimisation
+  let drawImage (context:CanvasRenderingContext2D) texture x y width height =
+    context.drawImage ((U3.Case2 (Graphics.canvasFromTexture texture)), x, y, width, height)
+    //((U3.Case2 (Graphics.canvasFromTexture weapon.CurrentSprite)), xPos, 0., height, height)
+  Weapons.drawPlayerWeapon bufferContext.canvas.width bufferContext.canvas.height (drawImage bufferContext) game
+  context.drawImage ((U3.Case2 bufferContext.canvas), left, top, viewportWidth*zoom, viewportHeight*zoom)
   
-  if bufferContextOption |> Option.isSome then 
-    let imageData = Graphics.createImageData outputTexture.ClampedData outputTexture.Width outputTexture.Height
-    bufferContext.putImageData(imageData, 0., 0.)
-    // we draw the weapon directly on the buffer context - it doesn't have any relation to other objects in the frame
-    // and by rendering it here we can take advantage of the speed of drawImage (compared to pixel by pixel manipulation)
-    // and as its big (height of the context) this is quite an optimisation
-    let drawImage texture x y width height =
-      bufferContext.drawImage ((U3.Case2 (Graphics.canvasFromTexture texture)), x, y, width, height)
-      //((U3.Case2 (Graphics.canvasFromTexture weapon.CurrentSprite)), xPos, 0., height, height)
-    Weapons.drawPlayerWeapon bufferContext.canvas.width bufferContext.canvas.height drawImage game
-    context.drawImage ((U3.Case2 bufferContext.canvas), 0., 0., viewportWidth*2., viewportHeight*2.)
-  else
-    let imageData = Graphics.createImageData outputTexture.ClampedData outputTexture.Width outputTexture.Height
-    context.putImageData(imageData, 0., 0.)
+  context.save()
+  context.translate (left, statusBarTop)
+  Render.StatusBar.drawStatusBar statusBarGraphics (drawImage context) game
+  context.restore()
   
-  let endTime = performance.now()
-  Primitives.fillText context $"Render length: %.0f{endTime-startTime}ms" 32. 32.
+  //let endTime = performance.now()
+  //Primitives.fillText context $"Render length: %.0f{endTime-startTime}ms" left (top / 2. + 8.)
   
   context.restore ()
+  
   firingHitGameObjectIndexOption
+  
   
 // I would like to pass the actual renderers as parameters here so that the scene drawer doesn't need to access the
 // Render.Walls.draw directly and Scene.fs can be before the cross platform code in the hierarchy. However doing so adds
 // 30ms onto the frame rendering time. Need to investigate why.
 let initScene (canvas:HTMLCanvasElement) _ =
   let context = canvas.getContext_2d()
-  let useLowResolutionBuffer = true
+ 
   let bufferContext,canvasWidth,canvasHeight =
-    if useLowResolutionBuffer then
-      let bufferCanvas = document.createElement("canvas") :?> HTMLCanvasElement
-      // original game had a max viewport size of 304x152 pixels
-      bufferCanvas.width <- 304. * 2. // 576. // 286. * 2.
-      bufferCanvas.height <- 152. * 2. // 142. * 2.
-      bufferCanvas.getContext_2d () |> Some,int bufferCanvas.width, int bufferCanvas.height
-    else
-      None,int canvas.width,int canvas.height
+    let bufferCanvas = document.createElement("canvas") :?> HTMLCanvasElement
+    // original game had a max viewport size of 304x152 pixels
+    bufferCanvas.width <- wolfViewportWidth * viewportZoom
+    bufferCanvas.height <- wolfViewportHeight * viewportZoom
+    //bufferCanvas.width <- 320. * 2.
+    //bufferCanvas.height <- 200. * 2.
+    bufferCanvas.getContext_2d (),int bufferCanvas.width, int bufferCanvas.height
   (draw context bufferContext),canvasWidth,canvasHeight

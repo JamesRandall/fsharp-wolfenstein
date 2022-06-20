@@ -4,8 +4,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "App", "browser\src\App.fspr
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "public", "public", "{B94430CE-21DE-43C3-A244-54B073BE2CF9}"
 	ProjectSection(SolutionItems) = preProject
-		public\index.html = public\index.html
-		public\fable.ico = public\fable.ico
+		browser\public\fable.ico = browser\public\fable.ico
+		browser\public\index.html = browser\public\index.html
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{A622FEA2-1998-4FB3-B2E4-223A8CE7BE70}"

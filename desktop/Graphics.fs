@@ -8,26 +8,35 @@ open SixLabors.ImageSharp.PixelFormats
 
 let spriteColorIsTransparent color = color = 4287168665ul
 
+let loadTexture name =
+  let bytes = Utils.loadAssetBytes name
+  let image = SixLabors.ImageSharp.Image.Load<Rgba32> bytes
+  { Image = image
+    Width = image.Width
+    Height = image.Height
+  }
+
+let loadTextures skipSharewareIndicies nameFormatter indicies = 
+  indicies
+  |> Seq.map(fun index ->
+    let spriteFileIndex =
+      if not skipSharewareIndicies || index |> Assets.isSharewareSprite || not Assets.isShareware then
+        index
+      else
+        0
+    let bytes = Utils.loadAssetBytes (nameFormatter spriteFileIndex)
+    let image = SixLabors.ImageSharp.Image.Load<Rgba32> bytes
+    { Image = image
+      Width = image.Width
+      Height = image.Height
+    }
+  )
+  |> Seq.toArray
+
 let loadSprites _ = async {
-  //let textureWidth = 64.
-  //let textureHeight = 64.
-  //let imageDataArray = FSharp.Collections.Array.create 436 None
   return
     {0..435}
-    |> Seq.map(fun index ->
-      let spriteFileIndex =
-        if index |> Assets.isSharewareSprite || not Assets.isShareware then
-          index
-        else
-          0
-      let bytes = Utils.loadAssetBytes $"Sprites.s{spriteFileIndex}.png"
-      let image = SixLabors.ImageSharp.Image.Load<Rgba32> bytes
-      { Image = image
-        Width = image.Width
-        Height = image.Height
-      }
-    )
-    |> Seq.toArray
+    |> loadTextures true (fun si -> $"Sprites.s{si}.png")
 }
 
 let scaleSprite (newWidth:float) (newHeight:float) (texture:Texture) =
@@ -52,3 +61,24 @@ let scaleSprite (newWidth:float) (newHeight:float) (texture:Texture) =
   )
   { texture with Image = newImage ; Width = newImage.Width ; Height = newImage.Height }
 
+let loadStatusBar () = async {
+  let textureSet =
+    loadTextures false (fun i -> sprintf "StatusBar.PIC%05d.png" (i+109)) {0..23}
+  let background =
+    loadTexture "StatusBar.background.png"
+  return
+    { Background = background
+      HealthFaces = [|
+        textureSet.[0..2]
+        textureSet.[3..5]
+        textureSet.[6..8]
+        textureSet.[9..11]
+        textureSet.[12..14]
+        textureSet.[15..17]
+        textureSet.[18..20]
+      |]
+      Dead = textureSet.[21]
+      GrinFace = textureSet.[22]
+      GreyFace = textureSet.[23]
+    }
+}

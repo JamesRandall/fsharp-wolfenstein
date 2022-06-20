@@ -127,6 +127,13 @@ Didn't really want to process WLx files by myself so I used a couple of tools to
 
 Firstly [Wolf3dExtract](https://github.com/HiPhish/Wolf3DExtract) to retrieve the components and then [ImageMagick](https://imagemagick.org/) to convert textures from PPM to PNG format. 
 
+### Screen Layout
+
+Wolfenstein ran at 320x200.
+The actual 3D viewport max size is 304x152 - the viewport is surrounded by a 1 pixel black border
+Their is a 3 pixel border teal border at the top of the viewport above the black border and a 7 pixel border to the left and right of that black border.
+
+
 ## License
 
 I've included the Shareware assets in this public repository. And all copyrights of the original game clearly remain with the copyright holders and all props to the geniuses behind the original game (I have no idea if Carmack, Romero, et al. are still copyright holders).

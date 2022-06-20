@@ -5,6 +5,7 @@ open System
 type Texture =
   { Data: Fable.Core.JS.Uint32Array
     ClampedData: Fable.Core.JS.Uint8ClampedArray
+    SourceCanvas: Browser.Types.HTMLCanvasElement
     Width: int
     Height: int
   }
@@ -14,4 +15,3 @@ type Texture =
   member this.getPixel x y =
     let offset = int y*int this.Width + x
     this.Data.[offset]
-

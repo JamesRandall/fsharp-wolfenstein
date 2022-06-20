@@ -298,6 +298,31 @@
         <EmbeddedResource Include="Assets\Sounds\Aieeee2 (enemy death).wav" />
         <EmbeddedResource Include="Assets\Sounds\DoorClose.wav" />
         <EmbeddedResource Include="Assets\Sounds\DoorOpen.wav" />
+        <EmbeddedResource Include="Assets\StatusBar\background.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00109.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00110.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00111.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00112.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00113.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00114.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00115.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00116.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00117.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00118.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00119.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00120.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00121.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00122.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00123.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00124.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00125.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00126.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00127.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00128.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00129.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00130.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00131.png" />
+        <EmbeddedResource Include="Assets\StatusBar\PIC00132.png" />
     </ItemGroup>
     <ItemGroup>
       <PackageReference Include="Silk.NET.Input" Version="2.15.0" />

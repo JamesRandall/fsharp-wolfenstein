@@ -306,7 +306,11 @@ let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) game enemy =
     // and the new position looking for a hit of a turning point.
     //
     // As a fail safe if we don't hit a turning point we simply reverse the direction
-    let newPosition = enemy.BasicGameObject.Position + (direction * (frameTime / 1000.<ms> * enemyVelocityUnitsPerSecond))
+    
+    // we need to limit velocity to a single map unit at a time or we can skip a unit and fall off the map
+    let velocityBasedDelta = (direction * (frameTime / 1000.<ms> * enemyVelocityUnitsPerSecond)).LimitToMapUnit()
+    let newPosition = enemy.BasicGameObject.Position + velocityBasedDelta
+    
     let maxDistanceToCheck = (newPosition - enemy.BasicGameObject.Position).Abs()
     
     let castRay () =
@@ -320,6 +324,8 @@ let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) game enemy =
       isHit, isWallHit, hitMapX, hitMapY
       
     let isHit, isWallHit, hitMapX, hitMapY =
+      if newPosition.vY < 0. || newPosition.vY > 63. || newPosition.vX < 0. || newPosition.vX > 63. then
+        Utils.log "oops"
       match game.Map.[int newPosition.vY].[int newPosition.vX] with
       | Cell.TurningPoint tpDirection ->
         if tpDirection = enemy.Direction then

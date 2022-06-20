@@ -56,7 +56,7 @@ let mutable updateControlState = (fun game _ -> game)
 open PlatformModel
 open App.Render
 
-let drawScene (image:SixLabors.ImageSharp.Image<Rgba32>) diagnosticFont graphics sprites game =
+let drawScene (image:SixLabors.ImageSharp.Image<Rgba32>) diagnosticFont statusBarGraphics graphics sprites game =
   let stopwatch = Stopwatch.StartNew()
   
   let viewportWidth = screenWidth

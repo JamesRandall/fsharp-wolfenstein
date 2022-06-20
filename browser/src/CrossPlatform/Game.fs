@@ -31,12 +31,13 @@ let init initScene = async {
   let! rawMap = Map.loadRawMap 0 //Map.loadLevel 0  
   let! graphics = GraphicsCommon.loadGraphics ()
   let! sprites = Graphics.loadSprites ()
+  let! statusBarTextures = Graphics.loadStatusBar ()
   
   let drawScene,_,canvasHeight = initScene ()
   
   let gameLoop (game:Game) (frameTime:float<ms>) =
     let updatedGameState =
-      drawScene graphics sprites game
+      drawScene statusBarTextures graphics sprites game
       |> updateFrame game frameTime
     updatedGameState
   let updateControlState game controlState =
