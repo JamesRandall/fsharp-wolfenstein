@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Directives>
+  <!--
+	  This file is part of RdXmlLibrary project.
+	  Visit https://github.com/kant2002/rdxmllibrary for latest version.
+	  If you have modifications specific to this Nuget package,
+	  please contribute back.
+  -->
+  <Application>
+    <Assembly Name="FSharp.Core">
+      <!--
+          This is less developed version then other RD.xml files.
+          Depending on the sprint usages, these commands would have slight variance.
+          I think more examples mapped to existing printf commands should be added here. 
+      -->
+      <Type Name="Microsoft.FSharp.Core.PrintfImpl+Specializations`3[[System.IO.TextWriter,System.Private.CoreLib],[Microsoft.FSharp.Core.Unit,FSharp.Core],[Microsoft.FSharp.Core.Unit,FSharp.Core]]" Dynamic="Required All">
+        <!-- Pattern for printfn "%f" 1.0 -->
+        <Method Name="CaptureFinal1" Dynamic="Required">
+          <GenericArgument Name="System.Double, System.Private.CoreLib" />
+        </Method>
+        <Method Name="OneStepWithArg" Dynamic="Required">
+          <GenericArgument Name="System.Double, System.Private.CoreLib" />
+        </Method>
+
+        <!-- Pattern for printfn "%s %f" "" 3.0 -->
+        <Method Name="CaptureFinal2" Dynamic="Required">
+          <GenericArgument Name="System.String, System.Private.CoreLib" />
+          <GenericArgument Name="System.Double, System.Private.CoreLib" />
+        </Method>
+        <Method Name="TwoStepWithArg" Dynamic="Required">
+          <GenericArgument Name="System.String, System.Private.CoreLib" />
+          <GenericArgument Name="System.Double, System.Private.CoreLib" />
+        </Method>
+
+        <Method Name="CaptureFinal3" Dynamic="Required">
+          <GenericArgument Name="System.String, System.Private.CoreLib" />
+          <GenericArgument Name="System.String, System.Private.CoreLib" />
+          <GenericArgument Name="System.Double, System.Private.CoreLib" />
+        </Method>
+
+        <!-- Pattern for printfn "%d %s" 3 "" -->
+        <Method Name="CaptureFinal2" Dynamic="Required">
+          <GenericArgument Name="System.Int32, System.Private.CoreLib" />
+          <GenericArgument Name="System.String, System.Private.CoreLib" />
+        </Method>
+        <Method Name="TwoStepWithArg" Dynamic="Required">
+          <GenericArgument Name="System.Int32, System.Private.CoreLib" />
+          <GenericArgument Name="System.String, System.Private.CoreLib" />
+        </Method>
+
+        <!-- Pattern for printfn "%d" 1 -->
+        <Method Name="CaptureFinal1" Dynamic="Required">
+          <GenericArgument Name="System.Int32, System.Private.CoreLib" />
+        </Method>
+        <Method Name="OneStepWithArg" Dynamic="Required">
+          <GenericArgument Name="System.Int32, System.Private.CoreLib" />
+        </Method>
+
+        <!-- Pattern for printfn "%f %d" 3.0 2 -->
+        <Method Name="CaptureFinal2" Dynamic="Required">
+          <GenericArgument Name="System.Double, System.Private.CoreLib" />
+          <GenericArgument Name="System.Int32, System.Private.CoreLib" />
+        </Method>
+        <Method Name="TwoStepWithArg" Dynamic="Required">
+          <GenericArgument Name="System.Double, System.Private.CoreLib" />
+          <GenericArgument Name="System.Int32, System.Private.CoreLib" />
+        </Method>
+      </Type>
+    </Assembly>
+  </Application>
+</Directives>

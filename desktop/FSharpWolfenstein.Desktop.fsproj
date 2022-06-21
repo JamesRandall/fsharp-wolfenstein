@@ -10,6 +10,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Content Include="FSharp.Core.rd.xml" />
         <Compile Include="OpenGl\BufferObject.fs" />
         <Compile Include="OpenGl\VertexArrayObject.fs" />
         <Compile Include="OpenGl\Shader.fs" />
@@ -336,4 +337,7 @@
       <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta13" />
       <PackageReference Include="Microsoft.Extensions.DependencyModel" Version="6.0.0" />
     </ItemGroup>
+  <ItemGroup>
+    <RdXmlFile Include="*.rd.xml" />
+  </ItemGroup>
 </Project>
