@@ -219,4 +219,5 @@ module Weapons =
 
 module StatusBar =
   let drawStatusBar (statusBarGraphics:StatusBarGraphics) drawImage game =
-    drawImage statusBarGraphics.Background 0. 0. (float statusBarGraphics.Background.Width*4.) (float statusBarGraphics.Background.Height*4.) 
+    drawImage statusBarGraphics.Background 0. 0.
+    drawImage statusBarGraphics.GrinFace 128.0 1.0

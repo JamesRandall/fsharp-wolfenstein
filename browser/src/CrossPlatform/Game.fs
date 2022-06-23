@@ -27,13 +27,13 @@ let private initialGameState =
     Doors = []
   }
 
-let init initScene = async {
+let init statusBarScale initScene = async {
   let! rawMap = Map.loadRawMap 0 //Map.loadLevel 0  
   let! graphics = GraphicsCommon.loadGraphics ()
   let! sprites = Graphics.loadSprites ()
-  let! statusBarTextures = Graphics.loadStatusBar ()
+  let! statusBarTextures = Graphics.loadStatusBar statusBarScale
   
-  let drawScene,_,canvasHeight = initScene ()
+  let drawScene,_,viewportHeight = initScene ()
   
   let gameLoop (game:Game) (frameTime:float<ms>) =
     let updatedGameState =
@@ -52,8 +52,8 @@ let init initScene = async {
         Player = {
           initialGameState.Player with
             Weapons = [
-              Map.getWeapon sprites WeaponType.Knife (Graphics.scaleSprite (float canvasHeight) (float canvasHeight))
-              Map.getWeapon sprites WeaponType.Pistol (Graphics.scaleSprite (float canvasHeight) (float canvasHeight))
+              Map.getWeapon sprites WeaponType.Knife (Graphics.scaleSprite (float viewportHeight) (float viewportHeight))
+              Map.getWeapon sprites WeaponType.Pistol (Graphics.scaleSprite (float viewportHeight) (float viewportHeight))
             ]
             CurrentWeaponIndex = 1
         }

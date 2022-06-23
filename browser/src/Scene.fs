@@ -107,7 +107,10 @@ let draw (context:CanvasRenderingContext2D) (bufferContext:CanvasRenderingContex
   
   context.save()
   context.translate (left, statusBarTop)
-  Render.StatusBar.drawStatusBar statusBarGraphics (drawImage context) game
+  let drawStatusBarImage (context:CanvasRenderingContext2D) texture x y =
+    let totalZoom = zoom * viewportZoom
+    drawImage context texture (x * totalZoom) (y * totalZoom) (float texture.Width * totalZoom) (float texture.Height * totalZoom)
+  Render.StatusBar.drawStatusBar statusBarGraphics (drawStatusBarImage context) game
   context.restore()
   
   //let endTime = performance.now()

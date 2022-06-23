@@ -50,9 +50,9 @@ let scaleSprite (newWidth:float) (newHeight:float) (texture:Texture) =
     |> Seq.iter(fun sourceY ->
       let color = image[sourceX,sourceY]
       let fromX = int (float sourceX * scaleX)
-      let toX = int (float fromX + scaleX)
+      let toX = min (int (newWidth-1.)) (int (float fromX + scaleX))
       let fromY = int (float sourceY * scaleY)
-      let toY = int (float fromY + scaleY)
+      let toY = min (int (newHeight-1.)) (int (float fromY + scaleY))
       {fromX..toX}
       |> Seq.iter(fun targetX ->
         {fromY..toY} |> Seq.iter(fun targetY -> newImage[targetX,targetY] <- color)
@@ -61,13 +61,16 @@ let scaleSprite (newWidth:float) (newHeight:float) (texture:Texture) =
   )
   { texture with Image = newImage ; Width = newImage.Width ; Height = newImage.Height }
 
-let loadStatusBar () = async {
+let loadStatusBar scale = async {
   let textureSet =
     loadTextures false (fun i -> sprintf "StatusBar.PIC%05d.png" (i+109)) {0..23}
+    |> Array.map(fun texture ->
+      scaleSprite (float texture.Width*scale) (float texture.Height*scale) texture
+    )
   let background =
     loadTexture "StatusBar.background.png"
   return
-    { Background = background
+    { Background = background |> scaleSprite (float background.Width*scale) (float background.Height*scale)
       HealthFaces = [|
         textureSet.[0..2]
         textureSet.[3..5]
