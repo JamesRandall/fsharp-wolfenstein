@@ -106,13 +106,7 @@ let private soundEffects =
     playSound
       
   
-  [ SoundEffect.PlayerPistol
-    SoundEffect.EnemyDeathAaarrrg
-    SoundEffect.EnemyDeathAieeeeLow
-    SoundEffect.EnemyDeathAieeeeHigh
-    SoundEffect.DoorOpen
-    SoundEffect.DoorClose
-  ]
+  SoundEffect.All
   |> List.map (fun soundEffectType -> soundEffectType,soundEffectType |> Assets.audioFilename "wav" |> audioAssetName)
   |> List.map (fun (soundEffectType,path) -> soundEffectType,(createAudioPlayer path))
   |> Map.ofList
@@ -131,3 +125,9 @@ let playRandomEnemyDeathSoundEffectAtVolume volume =
   ].[random.Next(3)]
   |> playSoundEffectAtVolume volume
 
+let playAttackSound enemyType volume =
+  match enemyType with
+  | EnemyType.Guard -> SoundEffect.GuardGunshot
+  // TODO: capture other firing (and dog chewing) sound
+  | _ -> SoundEffect.GuardGunshot
+  |> playSoundEffectAtVolume volume

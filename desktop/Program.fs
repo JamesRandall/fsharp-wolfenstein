@@ -2,6 +2,7 @@
 
 open System.Diagnostics
 open App
+open App.Model
 open FSharpWolfenstein.Desktop
 open Silk.NET.OpenGL
 open Silk.NET.Windowing
@@ -57,6 +58,7 @@ let emptyGame =
     IsFiring = false
     TimeToNextWeaponFrame = None
     Doors = []
+    ViewportFilter = ViewportFilter.None
   }
 
 type RenderData =

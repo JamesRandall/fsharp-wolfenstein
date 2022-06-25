@@ -24,13 +24,7 @@ let private createOverlayingAudioPlayer path =
 let private soundEffects =
   let audioPath filename = sprintf "assets/sounds/%s" (System.Uri.EscapeUriString filename)  
   
-  [ SoundEffect.PlayerPistol
-    SoundEffect.EnemyDeathAaarrrg
-    SoundEffect.EnemyDeathAieeeeLow
-    SoundEffect.EnemyDeathAieeeeHigh
-    SoundEffect.DoorOpen
-    SoundEffect.DoorClose
-  ]
+  SoundEffect.All
   |> List.map (fun soundEffectType -> soundEffectType,soundEffectType |> Assets.audioFilename "mp3" |> audioPath)
   |> List.map (fun (soundEffectType,path) -> soundEffectType,(createOverlayingAudioPlayer path))
   |> Map.ofList
@@ -39,7 +33,7 @@ let playSoundEffect soundEffect =
   let audioObject = soundEffects.[soundEffect]
   audioObject 1.0
   
-let playSoundEffectAtVolume volume soundEffect  =
+let playSoundEffectAtVolume (volume:float) soundEffect  =
   let audioObject = soundEffects.[soundEffect]
   audioObject volume
 
@@ -48,4 +42,11 @@ let playRandomEnemyDeathSoundEffectAtVolume volume =
     SoundEffect.EnemyDeathAieeeeHigh
     SoundEffect.EnemyDeathAieeeeLow
   ].[random.Next(3)]
+  |> playSoundEffectAtVolume volume
+  
+let playAttackSound enemyType volume =
+  match enemyType with
+  | EnemyType.Guard -> SoundEffect.GuardGunshot
+  // TODO: capture other firing (and dog chewing) sound
+  | _ -> SoundEffect.GuardGunshot
   |> playSoundEffectAtVolume volume

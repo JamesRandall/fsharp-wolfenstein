@@ -53,7 +53,7 @@ let private drawFrame (context:CanvasRenderingContext2D) =
   context.stroke()
 
 let draw (context:CanvasRenderingContext2D) (bufferContext:CanvasRenderingContext2D) statusBarGraphics graphics sprites game  =
-  //let startTime = performance.now ()
+  let startTime = performance.now ()
   
   context.save ()
   context?imageSmoothingEnabled <- false // bufferContextOption |> Option.isSome
@@ -113,8 +113,8 @@ let draw (context:CanvasRenderingContext2D) (bufferContext:CanvasRenderingContex
   Render.StatusBar.drawStatusBar statusBarGraphics (drawStatusBarImage context) game
   context.restore()
   
-  //let endTime = performance.now()
-  //Primitives.fillText context $"Render length: %.0f{endTime-startTime}ms" left (top / 2. + 8.)
+  let endTime = performance.now()
+  Primitives.fillText context $"Render length: %.0f{endTime-startTime}ms" left (top / 2. + 8.)
   
   context.restore ()
   

@@ -143,6 +143,16 @@ type SoundEffect =
   | EnemyDeathAieeeeHigh
   | DoorOpen
   | DoorClose
+  | GuardGunshot
+  static member All =
+    [ SoundEffect.PlayerPistol
+      SoundEffect.EnemyDeathAaarrrg
+      SoundEffect.EnemyDeathAieeeeLow
+      SoundEffect.EnemyDeathAieeeeHigh
+      SoundEffect.DoorOpen
+      SoundEffect.DoorClose
+      SoundEffect.GuardGunshot
+    ]
   
 [<RequireQualifiedAccess>]
 type DoorDirection =
@@ -223,6 +233,7 @@ type Enemy =
     TimeUntilNextAnimationFrame: float<ms>
     State: EnemyStateType
     IsFirstAttack: bool // shoud start at true and be set to false after first attack
+    FireAtPlayerRequired: bool // set to true during the update and AI loop if the enemy has fired at the player that frame
   }
   member this.DirectionVector = this.Direction.ToVector()
   member this.StationarySpriteBlockIndex = this.BasicGameObject.SpriteIndex
@@ -253,6 +264,16 @@ type Enemy =
     | EnemyStateType.Attack -> this.AttackSpriteIndexes.Length
     | EnemyStateType.Dead | EnemyStateType.Die -> this.DeathSpriteIndexes.Length
     | _ -> 1
+  member this.IsBoss =
+    match this.EnemyType with
+    | EnemyType.Guard
+    | EnemyType.Officer
+    | EnemyType.Dog
+    | EnemyType.SS
+    | EnemyType.Zombie -> false
+    | _ -> true
+  // some enemies can become invisible I believe... need to explore further
+  member this.IsVisible = true
   
 [<RequireQualifiedAccess>]
 type WeaponType =
@@ -335,6 +356,12 @@ type WolfensteinMap =
     Doors: DoorState list
   }
 
+[<RequireQualifiedAccess>]
+type ViewportFilter =
+  | None
+  | Blood of frame:int
+  | Pickup of frame:int
+
 type Game =
   { Map: Cell list list
     GameObjects: GameObject list
@@ -344,8 +371,10 @@ type Game =
     IsFiring: bool
     TimeToNextWeaponFrame: float<ms> option
     Doors: DoorState list
+    ViewportFilter: ViewportFilter
   }
   member this.PlayerMapPosition = (int this.Camera.Position.vX),(int this.Camera.Position.vY)
+  member this.IsPlayerRunning = (this.ControlState &&& ControlState.Forward) = ControlState.Forward
   
 type StatusBarGraphics =
   { Background: Texture

@@ -25,6 +25,7 @@ let private initialGameState =
     IsFiring = false
     TimeToNextWeaponFrame = None
     Doors = []
+    ViewportFilter = ViewportFilter.None
   }
 
 let init statusBarScale initScene = async {

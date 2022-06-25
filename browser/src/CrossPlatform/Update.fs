@@ -200,7 +200,8 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
           if timeRemainingInAnimationFrame < 0.<ms> then
             { enemy with
                 CurrentAnimationFrame = enemy.CurrentAnimationFrame+1
-                TimeUntilNextAnimationFrame = (Enemy.AnimationTimeForState enemy.State) + timeRemainingInAnimationFrame } |> GameObject.Enemy
+                TimeUntilNextAnimationFrame = (Enemy.AnimationTimeForState enemy.State) + timeRemainingInAnimationFrame 
+                FireAtPlayerRequired = enemy.CurrentAnimationFrame+1 = enemy.AnimationFrames-1 } |> GameObject.Enemy
           else
             { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
         else
@@ -254,18 +255,26 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
       | _ -> innerGame
     ) game
     
+  let resetNeedToFire gameObject =
+    match gameObject with
+    | GameObject.Enemy enemy ->
+      { enemy with FireAtPlayerRequired = false } |> GameObject.Enemy
+    | _ -> gameObject
+    
     
   let updateEnemies (game:Game,beganFiringSequenceOnFrame) =
-    let updatedGameObjects =
+    let _,updatedGame,updatedGameObjects =
       game.GameObjects
-      |> List.mapi(fun i go ->
-        go
-        |> updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame i
-        |> updateEnemyAnimation frameTime 
-        |> applyAi frameTime game
-        |> calculateRelativeGameObjectPosition game
-      )
-    { game with GameObjects = updatedGameObjects } |> openDoorsInRangeOfEnemies
+      |> List.fold(fun (i,innerGame,gameObjects) go ->
+        let updatedGameObject,updatedGame =
+          go
+          |> resetNeedToFire
+          |> updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame i
+          |> updateEnemyAnimation frameTime 
+          |> applyAi frameTime game
+        i+1,updatedGame,(updatedGameObject |> calculateRelativeGameObjectPosition updatedGame) :: gameObjects
+      ) (0,game,[])           
+    { updatedGame with GameObjects = updatedGameObjects } |> openDoorsInRangeOfEnemies
     
   let sortGameObjectsByDescendingDistance (game:Game) =
     // we need them in distance order for rendering and hit detection

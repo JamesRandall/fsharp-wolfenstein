@@ -271,14 +271,60 @@ let getNextState canSeePlayer game enemy =
       enemy
   | _ -> enemy
     
-let preProcess canSeePlayer game enemy =
+let preProcess canSeePlayer (enemy,game) =
   // preprocess looks for state changes based on the current game world state
   let newEnemy = enemy |> getNextState canSeePlayer game
   if newEnemy.State <> enemy.State then
     Utils.log $"Enemy at {enemy.BasicGameObject.Position.vX}, {enemy.BasicGameObject.Position.vY} moving from {enemy.State} to {newEnemy.State}"
-  newEnemy
+  (newEnemy,game)
     
-let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) game enemy =
+// this is loosely based on T_Shoot in WL_ACT2.C
+let firingOnPlayer canSeePlayer (enemy:Enemy,game:Game)  =
+  // Need to figure out what areabyplayer is
+  // I _think_ what it is is that the map is divided into areas separated by doors and therefore this is actually saying
+  // is that the player only takes damage if the enemy is in the same room as the player. These areas are also used
+  // for sound propagation in the AI.
+  // if (!areabyplayer[ob->areanumber])
+  //	return;
+  let damage =
+    if enemy.FireAtPlayerRequired && canSeePlayer then
+      let enemyX,enemyY = enemy.BasicGameObject.MapPosition
+      let playerX,playerY = game.PlayerMapPosition
+      let deltaX = abs (enemyX - playerX)
+      let deltaY = abs (enemyY - playerY)
+      
+      // SS and bosses are better shots than regular enemies 
+      let distance =
+        match enemy.EnemyType,enemy.IsBoss with
+        | EnemyType.SS,_
+        | _,true -> (max deltaX deltaY)*2/3
+        | _ -> max deltaX deltaY
+      
+      let hitchance =
+        if game.IsPlayerRunning then
+           if enemy.IsVisible then 160-distance*16 else 160-distance*8
+        else
+          if enemy.IsVisible then 256-distance*16 else 160-distance*8
+      
+      Audio.playAttackSound enemy.EnemyType 1.0
+          
+      if randomGenerator.Next(255) < hitchance then
+        if distance < 2 then
+          randomGenerator.Next(255) >>> 2
+        elif distance < 4 then
+          randomGenerator.Next(255) >>> 3
+        else randomGenerator.Next(255) >>> 4
+      else
+        0
+    else
+      0
+  enemy,
+  { game with
+      Player = { game.Player with Health = game.Player.Health - damage * 1<hp> }
+      ViewportFilter = if damage > 0 then ViewportFilter.Blood 0 else game.ViewportFilter
+  }  
+    
+let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) (enemy,game) =
   // updates the enemy based on its state
   match enemy.State,enemy.DirectionVector with
   | EnemyStateType.Chase (targetMapX, targetMapY), Some direction ->
@@ -292,10 +338,10 @@ let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) game enemy =
     // re-evaluate our chase state 
     if distanceToTarget.Magnitude > frameRateBasedDelta.Magnitude then
       let newPosition = enemy.BasicGameObject.Position + frameRateBasedDelta
-      { enemy with BasicGameObject = { enemy.BasicGameObject with Position = newPosition } }
+      { enemy with BasicGameObject = { enemy.BasicGameObject with Position = newPosition } },game
     else
-      { enemy with BasicGameObject = { enemy.BasicGameObject with Position = targetPosition } }
-      |> createChaseState canSeePlayer game
+      ({ enemy with BasicGameObject = { enemy.BasicGameObject with Position = targetPosition } }
+      |> createChaseState canSeePlayer game),game
     
   | EnemyStateType.Path, Some direction ->
     let enemyVelocityUnitsPerSecond = 0.5
@@ -360,18 +406,22 @@ let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) game enemy =
     { enemy with
         BasicGameObject = { enemy.BasicGameObject with Position = finalPosition }
         Direction = newDirection
-    }
-  | _ -> enemy
+    },game
+  | _ -> enemy,game
     
 let applyAi frameTime game gameObject =
   match gameObject with
   | GameObject.Enemy enemy ->
     if enemy.IsAlive then
       let canSeePlayer = enemy |> isPlayerVisibleToEnemy game
-      enemy
-      |> preProcess canSeePlayer game
-      |> updateBasedOnCurrentState canSeePlayer frameTime game
-      |> GameObject.Enemy
+      let updatedEnemy, updatedGame =
+        (enemy,game)
+        |> preProcess canSeePlayer
+        |> updateBasedOnCurrentState canSeePlayer frameTime
+        |> firingOnPlayer canSeePlayer
+      updatedEnemy |> GameObject.Enemy, updatedGame
     else
-      gameObject
-  | _ -> gameObject
+      gameObject,game
+  | _ -> gameObject,game
+  
+  

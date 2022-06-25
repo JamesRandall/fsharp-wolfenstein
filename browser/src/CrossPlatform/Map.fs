@@ -247,6 +247,7 @@ let loadLevelFromRawMap (raw:RawMap) =
         FramesPerBlock = framesPerBlock
         TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState startingState
         IsFirstAttack = true // will be set to false after first attack
+        FireAtPlayerRequired = false
       }
     let guardEnemy = createEnemy 50 4 8 [90 ; 91 ; 92 ; 93 ; 95] [96 ; 97 ; 98] EnemyType.Guard
     let dogEnemy = createEnemy 99 3 8 [131 ; 132 ; 133 ; 134] [135 ; 136 ; 137] EnemyType.Dog
