@@ -117,7 +117,7 @@ let calculateAreasFromMap map doors =
   
   let rec walk rowIndex colIndex : bool =
     if rowIndex >= 0 && rowIndex < 64 && colIndex >= 0 && colIndex < 64 then
-      if areas.[rowIndex].[colIndex] <> -1 then
+      if areas.[rowIndex].[colIndex] = -1 then
         match map.[rowIndex].[colIndex] with
         | Cell.Empty
         | Cell.TurningPoint _ ->
@@ -147,19 +147,19 @@ let calculateAreasFromMap map doors =
     |> List.map(fun door ->
       let doorX,doorY = door.MapPosition
       match door.DoorDirection with
-      | DoorDirection.EastWest ->
+      | DoorDirection.NorthSouth ->
         { door with
             AreaOne = areas.[doorY].[doorX-1]
             AreaTwo = areas.[doorY].[doorX+1]
         }
-      | DoorDirection.NorthSouth ->
+      | DoorDirection.EastWest ->
         { door with
             AreaOne = areas.[doorY-1].[doorX]
             AreaTwo = areas.[doorY+1].[doorX]
         }
     )
   
-  areas |> FSharp.Collections.Array.map FSharp.Collections.Array.toList |> FSharp.Collections.Array.toList, doorsPatchedWithAreas
+  areas, doorsPatchedWithAreas
 
 let loadLevelFromRawMap (raw:RawMap) =          
   let plane0,doors =
@@ -381,14 +381,19 @@ let loadLevelFromRawMap (raw:RawMap) =
           None
     )
     |> Seq.toList
-    
+  
+  let flipHorizontal (x,y) =
+    raw.MapSize - 1 - x, y
+  
+  // due to our renderer we have to flip the x co-ordinate
   let map = patchedPlane0 |> List.map List.rev
+  let doors = doors |> List.map(fun door -> { door with MapPosition = door.MapPosition |> flipHorizontal })
   let areas, updatedDoors = calculateAreasFromMap map doors
     
   { Width = raw.MapSize
     Height = raw.MapSize
     Map = map
-    Areas = areas
+    Areas = areas |> FSharp.Collections.Array.map FSharp.Collections.Array.toList |> FSharp.Collections.Array.toList
     PlayerStartingPosition = playerStartingPosition //|> reverseCamera
     GameObjects = gameObjects
     // This will only include the nearest enemy as a game object - useful for testing sometimes
