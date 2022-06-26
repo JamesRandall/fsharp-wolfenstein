@@ -162,6 +162,16 @@ let drawScene (screenImage:SixLabors.ImageSharp.Image<Rgba32>) (viewportImage:Si
     img.DrawImage(viewportImage, Point(int left,int top), GraphicsOptions()) |> ignore
     // statusbar
     Render.StatusBar.drawStatusBar statusBarGraphics drawStatusBarImage game
+    
+    // right at the end we render any viewport filter (e.g. blood / hit effect) over the top of everything
+    match game.ViewportFilter with
+    | ViewportFilter.Overlay overlay ->
+      FillRectangleExtensions.Fill(
+        img,
+        SolidBrush(Color.FromRgba(overlay.Red, overlay.Green, overlay.Blue, byte (255. * overlay.Opacity))),
+        RectangleF(0.f, 0.f, float32 screenWidth, float32 screenHeight)
+      ) |> ignore
+    | _ -> ()
   )
   
   let endTime = stopwatch.ElapsedMilliseconds
