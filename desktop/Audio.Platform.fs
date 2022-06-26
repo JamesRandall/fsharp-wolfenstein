@@ -1,13 +1,11 @@
-module App.Audio
-open System
+module App.PlatformAudio
 open System.Buffers.Binary
 open Microsoft.FSharp.NativeInterop
 open Silk.NET.OpenAL
 open App.Model
+open App
 
 exception AudioException of string
-
-let private random = Random()
 
 let private soundEffects =
   // Initialise AL
@@ -118,16 +116,3 @@ let playSoundEffectAtVolume volume soundEffect =
   
 let playSoundEffect soundEffect = playSoundEffectAtVolume 100. soundEffect
 
-let playRandomEnemyDeathSoundEffectAtVolume volume =
-  [ SoundEffect.EnemyDeathAaarrrg
-    SoundEffect.EnemyDeathAieeeeHigh
-    SoundEffect.EnemyDeathAieeeeLow
-  ].[random.Next(3)]
-  |> playSoundEffectAtVolume volume
-
-let playAttackSound enemyType volume =
-  match enemyType with
-  | EnemyType.Guard -> SoundEffect.GuardGunshot
-  // TODO: capture other firing (and dog chewing) sound
-  | _ -> SoundEffect.GuardGunshot
-  |> playSoundEffectAtVolume volume

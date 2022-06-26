@@ -51,6 +51,10 @@ type Vector2D =
     { vX = if v.vX > 1. then 1. elif v.vX < -1. then -1. else v.vX
       vY = if v.vY > 1. then 1. elif v.vY < -1. then -1. else v.vY
     }
+  static member CreateFromMapPosition position =
+    { vX = float (position |> fst) + 0.5
+      vY = float (position |> snd) + 0.5
+    }
   
 module Direction =
   // east and west directions are flipped due to our renderer

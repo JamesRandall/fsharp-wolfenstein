@@ -1,13 +1,12 @@
-module App.Audio
+module App.PlatformAudio
+
 open Fable.Core
 open Fable.Core.JsInterop
 open App.Model
 
 [<Emit("new Audio($0)")>]
 let createAudio path : obj = jsNative
-let private random = System.Random()
-  
-  
+
 let private createOverlayingAudioPlayer path =
   let audioPlayers =
     {0..4}
@@ -20,12 +19,11 @@ let private createOverlayingAudioPlayer path =
     currentIndex <- if currentIndex = audioPlayers.Length-1 then 0 else currentIndex+1
   play
     
-  
 let private soundEffects =
   let audioPath filename = sprintf "assets/sounds/%s" (System.Uri.EscapeUriString filename)  
   
   SoundEffect.All
-  |> List.map (fun soundEffectType -> soundEffectType,soundEffectType |> Assets.audioFilename "mp3" |> audioPath)
+  |> List.map (fun soundEffectType -> soundEffectType,soundEffectType |> App.Assets.audioFilename "mp3" |> audioPath)
   |> List.map (fun (soundEffectType,path) -> soundEffectType,(createOverlayingAudioPlayer path))
   |> Map.ofList
   
@@ -36,17 +34,3 @@ let playSoundEffect soundEffect =
 let playSoundEffectAtVolume (volume:float) soundEffect  =
   let audioObject = soundEffects.[soundEffect]
   audioObject volume
-
-let playRandomEnemyDeathSoundEffectAtVolume volume =
-  [ SoundEffect.EnemyDeathAaarrrg
-    SoundEffect.EnemyDeathAieeeeHigh
-    SoundEffect.EnemyDeathAieeeeLow
-  ].[random.Next(3)]
-  |> playSoundEffectAtVolume volume
-  
-let playAttackSound enemyType volume =
-  match enemyType with
-  | EnemyType.Guard -> SoundEffect.GuardGunshot
-  // TODO: capture other firing (and dog chewing) sound
-  | _ -> SoundEffect.GuardGunshot
-  |> playSoundEffectAtVolume volume

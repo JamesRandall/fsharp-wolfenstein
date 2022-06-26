@@ -76,7 +76,8 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
   let tryOpenDoor (doorState:DoorState) =
     match doorState.Status with
     | DoorStatus.Closed ->
-      playSoundEffect SoundEffect.DoorOpen
+      let doorPosition = Vector2D.CreateFromMapPosition doorState.MapPosition
+      playSoundEffect game doorPosition SoundEffect.DoorOpen
       { doorState with Status = DoorStatus.Opening ; TimeRemainingInAnimationState = doorOpeningTime }
     | _ -> doorState
        
@@ -108,7 +109,8 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
             { doorState with TimeRemainingInAnimationState = newTimeRemainingInAnimationState ; Offset = newOffset }
         | DoorStatus.Open ->
           if newTimeRemainingInAnimationState < 0.<ms> then
-            playSoundEffect SoundEffect.DoorClose
+            let doorPosition = Vector2D.CreateFromMapPosition doorState.MapPosition
+            playSoundEffect game doorPosition SoundEffect.DoorClose
             { doorState with Status = DoorStatus.Closing ; TimeRemainingInAnimationState = doorOpeningTime }
           else
             { doorState with TimeRemainingInAnimationState = newTimeRemainingInAnimationState }
@@ -136,7 +138,7 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
       let updatedWeapon = { currentWeapon with CurrentFrame = 1 }
       
       // begin firing
-      playSoundEffect SoundEffect.PlayerPistol
+      playSoundEffect game game.Camera.Position SoundEffect.PlayerPistol
       { game with
           IsFiring = true
           TimeToNextWeaponFrame = Some weaponAnimationFrameTime
@@ -172,7 +174,7 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
           match renderingResult.SpriteInFrontOfPlayerIndexOption,beganFiringSequenceOnFrame with
           | Some firingHitGameObjectIndex, true ->
             if firingHitGameObjectIndex = indexOfGameObject then
-              playRandomEnemyDeathSoundEffectAtVolume 1.0
+              playRandomEnemyDeathSoundEffectAtVolume game e.BasicGameObject.Position
               // begin the death sequence
               { e with
                   State = EnemyStateType.Die

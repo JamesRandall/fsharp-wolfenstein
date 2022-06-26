@@ -306,7 +306,7 @@ let firingOnPlayer canSeePlayer (enemy:Enemy,game:Game)  =
         else
           if enemy.IsVisible then 256-distance*16 else 160-distance*8
       
-      Audio.playAttackSound enemy.EnemyType 1.0
+      Audio.playAttackSound game enemy.BasicGameObject.Position enemy.EnemyType
           
       if randomGenerator.Next(255) < hitchance then
         if distance < 2 then

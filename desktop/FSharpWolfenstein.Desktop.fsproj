@@ -26,7 +26,10 @@
           <Link>Graphics.Common.fs</Link>
         </Compile>
         <Compile Include="Graphics.fs" />
-        <Compile Include="Audio.fs" />
+        <Compile Include="Audio.Platform.fs" />
+        <Compile Include="..\browser\src\CrossPlatform\Audio.fs">
+          <Link>Audio.fs</Link>
+        </Compile>
         <Compile Include="..\browser\src\CrossPlatform\Ray.fs">
           <Link>Ray.fs</Link>
         </Compile>
