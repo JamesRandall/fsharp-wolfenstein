@@ -6,6 +6,7 @@ open Update
 
 let private initialGameState =
   { Map = []
+    Areas = []
     Player = {
       Score = 0<points>
       Health = 100<hp>
@@ -47,7 +48,7 @@ let init statusBarScale initScene = async {
   let level = Map.loadLevelFromRawMap rawMap
   let gameState =
     { initialGameState with
-        Map = level.Plane0
+        Map = level.Map
         Camera = level.PlayerStartingPosition
         GameObjects = level.GameObjects
         Player = {

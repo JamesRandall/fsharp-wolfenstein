@@ -1,6 +1,7 @@
 module App.Scene
 
 open App
+open App.Model
 open Browser.Types
 open Fable.Core
 open Browser
@@ -112,6 +113,12 @@ let draw (context:CanvasRenderingContext2D) (bufferContext:CanvasRenderingContex
     drawImage context texture (x * totalZoom) (y * totalZoom) (float texture.Width * totalZoom) (float texture.Height * totalZoom)
   Render.StatusBar.drawStatusBar statusBarGraphics (drawStatusBarImage context) game
   context.restore()
+  
+  match game.ViewportFilter with
+  | ViewportFilter.Overlay overlay ->
+    context.fillStyle <- U3.Case1 $"rgba({overlay.Red},{overlay.Green},{overlay.Blue},{overlay.Opacity})"
+    context.fillRect(-1., -1., context.canvas.width + 2., context.canvas.height + 2.)
+  | _ -> ()
   
   let endTime = performance.now()
   Primitives.fillText context $"Render length: %.0f{endTime-startTime}ms" left (top / 2. + 8.)

@@ -221,3 +221,4 @@ module StatusBar =
   let drawStatusBar (statusBarGraphics:StatusBarGraphics) drawImage game =
     drawImage statusBarGraphics.Background 0. 0.
     drawImage statusBarGraphics.GrinFace 128.0 1.0
+    

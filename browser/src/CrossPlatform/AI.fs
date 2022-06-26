@@ -318,10 +318,18 @@ let firingOnPlayer canSeePlayer (enemy:Enemy,game:Game)  =
         0
     else
       0
+      
+  if damage > 0 then Utils.log $"Damage: {damage}"
+  let maximumPossibleDamage = 64.
+      
   enemy,
   { game with
       Player = { game.Player with Health = game.Player.Health - damage * 1<hp> }
-      ViewportFilter = if damage > 0 then ViewportFilter.Blood 0 else game.ViewportFilter
+      ViewportFilter =
+        if damage > 0 then
+          ViewportFilter.Overlay (OverlayAnimation.Blood ((float damage) / maximumPossibleDamage))
+        else
+          game.ViewportFilter
   }  
     
 let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) (enemy,game) =

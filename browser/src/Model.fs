@@ -173,6 +173,8 @@ type DoorState =
     Offset: float
     TimeRemainingInAnimationState: float<ms>
     MapPosition: (int*int)
+    AreaOne: int
+    AreaTwo: int
   }
   
 [<RequireQualifiedAccess>]
@@ -347,7 +349,8 @@ type RawMap =
 type WolfensteinMap =
   { Width: int
     Height: int
-    Plane0: Cell list list
+    Map: Cell list list
+    Areas: int list list
     GameObjects: GameObject list
     PlayerStartingPosition: Camera
     // we store door state outside of the map and store an index to them in the map
@@ -356,14 +359,40 @@ type WolfensteinMap =
     Doors: DoorState list
   }
 
+type OverlayAnimation =
+  { Red: byte
+    Green: byte
+    Blue: byte
+    Opacity: float
+    MaxOpacity: float
+    OpacityDelta: float
+    FrameLength: float<ms>
+    TimeRemainingUntilNextFrame: float<ms>
+  }
+  static member Blood maxOpacity =
+    let maxOpacity = max maxOpacity 0.2
+    let totalAnimationTime = 75.<ms>
+    let totalFrames = 10.
+    let opacityDelta = maxOpacity / (totalFrames / 2.) // we go in and out     
+    let frameLength = totalAnimationTime / totalFrames
+    { Red = 0xFFuy//0x8Cuy
+      Green = 0uy
+      Blue = 0uy
+      Opacity = opacityDelta
+      OpacityDelta = opacityDelta
+      MaxOpacity = maxOpacity
+      FrameLength = frameLength
+      TimeRemainingUntilNextFrame = frameLength
+    }
+
 [<RequireQualifiedAccess>]
 type ViewportFilter =
   | None
-  | Blood of frame:int
-  | Pickup of frame:int
+  | Overlay of OverlayAnimation  
 
 type Game =
   { Map: Cell list list
+    Areas: int list list
     GameObjects: GameObject list
     Player: Player
     Camera: Camera

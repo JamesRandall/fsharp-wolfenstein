@@ -271,7 +271,7 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
           |> resetNeedToFire
           |> updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame i
           |> updateEnemyAnimation frameTime 
-          |> applyAi frameTime game
+          |> applyAi frameTime innerGame // this did read "game" but I think that's wrong, though I've not seen a bug
         i+1,updatedGame,(updatedGameObject |> calculateRelativeGameObjectPosition updatedGame) :: gameObjects
       ) (0,game,[])           
     { updatedGame with GameObjects = updatedGameObjects } |> openDoorsInRangeOfEnemies
@@ -281,6 +281,29 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
     { game with
         GameObjects = game.GameObjects |> List.sortByDescending(fun s -> s.BasicGameObject.UnsquaredDistanceFromPlayer)
     }
+    
+  let updateViewportFilter game =
+    let newFilter =
+      match game.ViewportFilter with
+      | ViewportFilter.Overlay overlay ->
+        let timeRemainingInFrame = overlay.TimeRemainingUntilNextFrame - frameTime
+        if timeRemainingInFrame <= 0.<ms> then
+          let newTimeRemainingInFrame = overlay.FrameLength + timeRemainingInFrame
+          let newOpacity = overlay.Opacity + overlay.OpacityDelta
+          if newOpacity >= overlay.MaxOpacity then
+            { overlay with Opacity = overlay.MaxOpacity
+                           OpacityDelta = overlay.OpacityDelta * -1.
+                           TimeRemainingUntilNextFrame = newTimeRemainingInFrame
+            } |> ViewportFilter.Overlay
+          elif newOpacity <= 0. then
+            ViewportFilter.None
+          else
+            { overlay with Opacity = newOpacity ; TimeRemainingUntilNextFrame = newTimeRemainingInFrame }
+            |> ViewportFilter.Overlay
+        else
+          { overlay with TimeRemainingUntilNextFrame = timeRemainingInFrame } |> ViewportFilter.Overlay
+      | _ -> game.ViewportFilter
+    { game with ViewportFilter = newFilter }
 
   game
   |> (fun g -> match g with | IsActive ControlState.Forward -> move movementSpeed g | _ -> g)
@@ -294,4 +317,5 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
   |> updateEnemies
   |> handleAction
   |> updateTransitioningDoors
+  |> updateViewportFilter
   |> sortGameObjectsByDescendingDistance

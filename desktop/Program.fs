@@ -39,6 +39,7 @@ let private getViewportPosition () =
 
 let emptyGame =
   { Map = []
+    Areas = []
     Player = {
       Score = 0<points>
       Health = 100<hp>
