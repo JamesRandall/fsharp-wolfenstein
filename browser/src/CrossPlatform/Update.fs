@@ -76,7 +76,8 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
   let tryOpenDoor (doorState:DoorState) =
     match doorState.Status with
     | DoorStatus.Closed ->
-      playSoundEffect SoundEffect.DoorOpen
+      let doorPosition = Vector2D.CreateFromMapPosition doorState.MapPosition
+      playSoundEffect game doorPosition SoundEffect.DoorOpen
       { doorState with Status = DoorStatus.Opening ; TimeRemainingInAnimationState = doorOpeningTime }
     | _ -> doorState
        
@@ -108,7 +109,8 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
             { doorState with TimeRemainingInAnimationState = newTimeRemainingInAnimationState ; Offset = newOffset }
         | DoorStatus.Open ->
           if newTimeRemainingInAnimationState < 0.<ms> then
-            playSoundEffect SoundEffect.DoorClose
+            let doorPosition = Vector2D.CreateFromMapPosition doorState.MapPosition
+            playSoundEffect game doorPosition SoundEffect.DoorClose
             { doorState with Status = DoorStatus.Closing ; TimeRemainingInAnimationState = doorOpeningTime }
           else
             { doorState with TimeRemainingInAnimationState = newTimeRemainingInAnimationState }
@@ -136,7 +138,7 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
       let updatedWeapon = { currentWeapon with CurrentFrame = 1 }
       
       // begin firing
-      playSoundEffect SoundEffect.PlayerPistol
+      playSoundEffect game game.Camera.Position SoundEffect.PlayerPistol
       { game with
           IsFiring = true
           TimeToNextWeaponFrame = Some weaponAnimationFrameTime
@@ -172,7 +174,7 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
           match renderingResult.SpriteInFrontOfPlayerIndexOption,beganFiringSequenceOnFrame with
           | Some firingHitGameObjectIndex, true ->
             if firingHitGameObjectIndex = indexOfGameObject then
-              playRandomEnemyDeathSoundEffectAtVolume 1.0
+              playRandomEnemyDeathSoundEffectAtVolume game e.BasicGameObject.Position
               // begin the death sequence
               { e with
                   State = EnemyStateType.Die
@@ -200,7 +202,8 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
           if timeRemainingInAnimationFrame < 0.<ms> then
             { enemy with
                 CurrentAnimationFrame = enemy.CurrentAnimationFrame+1
-                TimeUntilNextAnimationFrame = (Enemy.AnimationTimeForState enemy.State) + timeRemainingInAnimationFrame } |> GameObject.Enemy
+                TimeUntilNextAnimationFrame = (Enemy.AnimationTimeForState enemy.State) + timeRemainingInAnimationFrame 
+                FireAtPlayerRequired = enemy.CurrentAnimationFrame+1 = enemy.AnimationFrames-1 } |> GameObject.Enemy
           else
             { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
         else
@@ -254,24 +257,55 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
       | _ -> innerGame
     ) game
     
+  let resetNeedToFire gameObject =
+    match gameObject with
+    | GameObject.Enemy enemy ->
+      { enemy with FireAtPlayerRequired = false } |> GameObject.Enemy
+    | _ -> gameObject
+    
     
   let updateEnemies (game:Game,beganFiringSequenceOnFrame) =
-    let updatedGameObjects =
+    let _,updatedGame,updatedGameObjects =
       game.GameObjects
-      |> List.mapi(fun i go ->
-        go
-        |> updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame i
-        |> updateEnemyAnimation frameTime 
-        |> applyAi frameTime game
-        |> calculateRelativeGameObjectPosition game
-      )
-    { game with GameObjects = updatedGameObjects } |> openDoorsInRangeOfEnemies
+      |> List.fold(fun (i,innerGame,gameObjects) go ->
+        let updatedGameObject,updatedGame =
+          go
+          |> resetNeedToFire
+          |> updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame i
+          |> updateEnemyAnimation frameTime 
+          |> applyAi frameTime innerGame // this did read "game" but I think that's wrong, though I've not seen a bug
+        i+1,updatedGame,(updatedGameObject |> calculateRelativeGameObjectPosition updatedGame) :: gameObjects
+      ) (0,game,[])           
+    { updatedGame with GameObjects = updatedGameObjects } |> openDoorsInRangeOfEnemies
     
   let sortGameObjectsByDescendingDistance (game:Game) =
     // we need them in distance order for rendering and hit detection
     { game with
         GameObjects = game.GameObjects |> List.sortByDescending(fun s -> s.BasicGameObject.UnsquaredDistanceFromPlayer)
     }
+    
+  let updateViewportFilter game =
+    let newFilter =
+      match game.ViewportFilter with
+      | ViewportFilter.Overlay overlay ->
+        let timeRemainingInFrame = overlay.TimeRemainingUntilNextFrame - frameTime
+        if timeRemainingInFrame <= 0.<ms> then
+          let newTimeRemainingInFrame = overlay.FrameLength + timeRemainingInFrame
+          let newOpacity = overlay.Opacity + overlay.OpacityDelta
+          if newOpacity >= overlay.MaxOpacity then
+            { overlay with Opacity = overlay.MaxOpacity
+                           OpacityDelta = overlay.OpacityDelta * -1.
+                           TimeRemainingUntilNextFrame = newTimeRemainingInFrame
+            } |> ViewportFilter.Overlay
+          elif newOpacity <= 0. then
+            ViewportFilter.None
+          else
+            { overlay with Opacity = newOpacity ; TimeRemainingUntilNextFrame = newTimeRemainingInFrame }
+            |> ViewportFilter.Overlay
+        else
+          { overlay with TimeRemainingUntilNextFrame = timeRemainingInFrame } |> ViewportFilter.Overlay
+      | _ -> game.ViewportFilter
+    { game with ViewportFilter = newFilter }
 
   game
   |> (fun g -> match g with | IsActive ControlState.Forward -> move movementSpeed g | _ -> g)
@@ -285,4 +319,5 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
   |> updateEnemies
   |> handleAction
   |> updateTransitioningDoors
+  |> updateViewportFilter
   |> sortGameObjectsByDescendingDistance

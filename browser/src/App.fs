@@ -23,7 +23,7 @@ let private controlStateFromKeyCode keyCode =
   | "Space" -> ControlState.Action
   | _ -> ControlState.None
 
-let initialisationPromise = (App.Game.init (App.Scene.initScene canvas) |> Async.StartAsPromise)
+let initialisationPromise = (App.Game.init 1. (App.Scene.initScene canvas)) |> Async.StartAsPromise
 initialisationPromise
   .``then``(fun (gameLoop,controlStateHandler,initialGameState) ->
     let mutable previousTimestamp = 0.

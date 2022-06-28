@@ -51,6 +51,10 @@ type Vector2D =
     { vX = if v.vX > 1. then 1. elif v.vX < -1. then -1. else v.vX
       vY = if v.vY > 1. then 1. elif v.vY < -1. then -1. else v.vY
     }
+  static member CreateFromMapPosition position =
+    { vX = float (position |> fst) + 0.5
+      vY = float (position |> snd) + 0.5
+    }
   
 module Direction =
   // east and west directions are flipped due to our renderer
@@ -143,6 +147,16 @@ type SoundEffect =
   | EnemyDeathAieeeeHigh
   | DoorOpen
   | DoorClose
+  | GuardGunshot
+  static member All =
+    [ SoundEffect.PlayerPistol
+      SoundEffect.EnemyDeathAaarrrg
+      SoundEffect.EnemyDeathAieeeeLow
+      SoundEffect.EnemyDeathAieeeeHigh
+      SoundEffect.DoorOpen
+      SoundEffect.DoorClose
+      SoundEffect.GuardGunshot
+    ]
   
 [<RequireQualifiedAccess>]
 type DoorDirection =
@@ -163,6 +177,8 @@ type DoorState =
     Offset: float
     TimeRemainingInAnimationState: float<ms>
     MapPosition: (int*int)
+    AreaOne: int
+    AreaTwo: int
   }
   
 [<RequireQualifiedAccess>]
@@ -223,6 +239,7 @@ type Enemy =
     TimeUntilNextAnimationFrame: float<ms>
     State: EnemyStateType
     IsFirstAttack: bool // shoud start at true and be set to false after first attack
+    FireAtPlayerRequired: bool // set to true during the update and AI loop if the enemy has fired at the player that frame
   }
   member this.DirectionVector = this.Direction.ToVector()
   member this.StationarySpriteBlockIndex = this.BasicGameObject.SpriteIndex
@@ -253,6 +270,16 @@ type Enemy =
     | EnemyStateType.Attack -> this.AttackSpriteIndexes.Length
     | EnemyStateType.Dead | EnemyStateType.Die -> this.DeathSpriteIndexes.Length
     | _ -> 1
+  member this.IsBoss =
+    match this.EnemyType with
+    | EnemyType.Guard
+    | EnemyType.Officer
+    | EnemyType.Dog
+    | EnemyType.SS
+    | EnemyType.Zombie -> false
+    | _ -> true
+  // some enemies can become invisible I believe... need to explore further
+  member this.IsVisible = true
   
 [<RequireQualifiedAccess>]
 type WeaponType =
@@ -326,7 +353,8 @@ type RawMap =
 type WolfensteinMap =
   { Width: int
     Height: int
-    Plane0: Cell list list
+    Map: Cell list list
+    Areas: int list list
     GameObjects: GameObject list
     PlayerStartingPosition: Camera
     // we store door state outside of the map and store an index to them in the map
@@ -335,8 +363,40 @@ type WolfensteinMap =
     Doors: DoorState list
   }
 
+type OverlayAnimation =
+  { Red: byte
+    Green: byte
+    Blue: byte
+    Opacity: float
+    MaxOpacity: float
+    OpacityDelta: float
+    FrameLength: float<ms>
+    TimeRemainingUntilNextFrame: float<ms>
+  }
+  static member Blood maxOpacity =
+    let maxOpacity = max maxOpacity 0.2
+    let totalAnimationTime = 75.<ms>
+    let totalFrames = 10.
+    let opacityDelta = maxOpacity / (totalFrames / 2.) // we go in and out     
+    let frameLength = totalAnimationTime / totalFrames
+    { Red = 0xFFuy//0x8Cuy
+      Green = 0uy
+      Blue = 0uy
+      Opacity = opacityDelta
+      OpacityDelta = opacityDelta
+      MaxOpacity = maxOpacity
+      FrameLength = frameLength
+      TimeRemainingUntilNextFrame = frameLength
+    }
+
+[<RequireQualifiedAccess>]
+type ViewportFilter =
+  | None
+  | Overlay of OverlayAnimation  
+
 type Game =
   { Map: Cell list list
+    Areas: int list list
     GameObjects: GameObject list
     Player: Player
     Camera: Camera
@@ -344,8 +404,10 @@ type Game =
     IsFiring: bool
     TimeToNextWeaponFrame: float<ms> option
     Doors: DoorState list
+    ViewportFilter: ViewportFilter
   }
   member this.PlayerMapPosition = (int this.Camera.Position.vX),(int this.Camera.Position.vY)
+  member this.IsPlayerRunning = (this.ControlState &&& ControlState.Forward) = ControlState.Forward
   
 type StatusBarGraphics =
   { Background: Texture

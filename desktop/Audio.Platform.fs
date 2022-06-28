@@ -1,13 +1,11 @@
-module App.Audio
-open System
+module App.PlatformAudio
 open System.Buffers.Binary
 open Microsoft.FSharp.NativeInterop
 open Silk.NET.OpenAL
 open App.Model
+open App
 
 exception AudioException of string
-
-let private random = Random()
 
 let private soundEffects =
   // Initialise AL
@@ -106,13 +104,7 @@ let private soundEffects =
     playSound
       
   
-  [ SoundEffect.PlayerPistol
-    SoundEffect.EnemyDeathAaarrrg
-    SoundEffect.EnemyDeathAieeeeLow
-    SoundEffect.EnemyDeathAieeeeHigh
-    SoundEffect.DoorOpen
-    SoundEffect.DoorClose
-  ]
+  SoundEffect.All
   |> List.map (fun soundEffectType -> soundEffectType,soundEffectType |> Assets.audioFilename "wav" |> audioAssetName)
   |> List.map (fun (soundEffectType,path) -> soundEffectType,(createAudioPlayer path))
   |> Map.ofList
@@ -123,11 +115,4 @@ let playSoundEffectAtVolume volume soundEffect =
   | _ -> Utils.log $"Missing sound effect {soundEffect}"
   
 let playSoundEffect soundEffect = playSoundEffectAtVolume 100. soundEffect
-
-let playRandomEnemyDeathSoundEffectAtVolume volume =
-  [ SoundEffect.EnemyDeathAaarrrg
-    SoundEffect.EnemyDeathAieeeeHigh
-    SoundEffect.EnemyDeathAieeeeLow
-  ].[random.Next(3)]
-  |> playSoundEffectAtVolume volume
 

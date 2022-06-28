@@ -115,9 +115,9 @@ let loadTextureSet nameFormatter fallbackName textureWidth textureHeight checkSh
   return imageDataArray |> Array.map(fun element -> element.Value)
 }
 
-let loadStatusBar () = async {
+let loadStatusBar _ = async {
   let! textureSet =
-    loadTextureSet (fun i -> sprintf "assets/statusBar/PIC%05d.png" (i+109)) $"assets/sprites/s0.png" 64. 64. false {0..23}
+    loadTextureSet (fun i -> sprintf "assets/statusBar/PIC%05d.png" (i+109)) $"assets/sprites/s0.png" 24. 32. false {0..23}
   let! background =
     loadTexture "assets/statusBar/background.png" 304. 35.
   return

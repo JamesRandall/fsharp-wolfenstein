@@ -9,8 +9,9 @@
     <Compile Include="Utils.fs" />
     <Compile Include="Graphics.Common.fs" />
     <Compile Include="Graphics.fs" />
-    <Compile Include="Audio.fs" />
+    <Compile Include="Audio.Platform.fs" />
     <Compile Include="Render.Primitives.fs" />
+    <Compile Include="CrossPlatform\Audio.fs" />
     <Compile Include="CrossPlatform\Ray.fs" />
     <Compile Include="CrossPlatform\Compression.fs" />
     <Compile Include="CrossPlatform\Map.fs" />

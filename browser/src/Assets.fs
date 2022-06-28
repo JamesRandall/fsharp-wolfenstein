@@ -22,5 +22,6 @@ let audioFilename extension soundEffect =
       | SoundEffect.EnemyDeathAieeeeHigh -> "Aieeee2 (enemy death)"
       | SoundEffect.DoorOpen -> "DoorOpen"
       | SoundEffect.DoorClose -> "DoorClose"
+      | SoundEffect.GuardGunshot -> "GuardGunshot"
     $"{prefix}.{extension}"
   filename

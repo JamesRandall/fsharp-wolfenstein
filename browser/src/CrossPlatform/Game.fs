@@ -6,6 +6,7 @@ open Update
 
 let private initialGameState =
   { Map = []
+    Areas = []
     Player = {
       Score = 0<points>
       Health = 100<hp>
@@ -25,15 +26,16 @@ let private initialGameState =
     IsFiring = false
     TimeToNextWeaponFrame = None
     Doors = []
+    ViewportFilter = ViewportFilter.None
   }
 
-let init initScene = async {
+let init statusBarScale initScene = async {
   let! rawMap = Map.loadRawMap 0 //Map.loadLevel 0  
   let! graphics = GraphicsCommon.loadGraphics ()
   let! sprites = Graphics.loadSprites ()
-  let! statusBarTextures = Graphics.loadStatusBar ()
+  let! statusBarTextures = Graphics.loadStatusBar statusBarScale
   
-  let drawScene,_,canvasHeight = initScene ()
+  let drawScene,_,viewportHeight = initScene ()
   
   let gameLoop (game:Game) (frameTime:float<ms>) =
     let updatedGameState =
@@ -46,14 +48,14 @@ let init initScene = async {
   let level = Map.loadLevelFromRawMap rawMap
   let gameState =
     { initialGameState with
-        Map = level.Plane0
+        Map = level.Map
         Camera = level.PlayerStartingPosition
         GameObjects = level.GameObjects
         Player = {
           initialGameState.Player with
             Weapons = [
-              Map.getWeapon sprites WeaponType.Knife (Graphics.scaleSprite (float canvasHeight) (float canvasHeight))
-              Map.getWeapon sprites WeaponType.Pistol (Graphics.scaleSprite (float canvasHeight) (float canvasHeight))
+              Map.getWeapon sprites WeaponType.Knife (Graphics.scaleSprite (float viewportHeight) (float viewportHeight))
+              Map.getWeapon sprites WeaponType.Pistol (Graphics.scaleSprite (float viewportHeight) (float viewportHeight))
             ]
             CurrentWeaponIndex = 1
         }

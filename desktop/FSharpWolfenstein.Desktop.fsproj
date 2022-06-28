@@ -7,6 +7,7 @@
         <PublishAot Condition="'$(TargetFramework)' == 'net7.0'">true</PublishAot>
         <IlcTrimMetadata>true</IlcTrimMetadata>
         <TrimmerDefaultAction>link</TrimmerDefaultAction>
+        <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
     </PropertyGroup>
 
     <ItemGroup>
@@ -29,7 +30,10 @@
           <Link>Graphics.Common.fs</Link>
         </Compile>
         <Compile Include="Graphics.fs" />
-        <Compile Include="Audio.fs" />
+        <Compile Include="Audio.Platform.fs" />
+        <Compile Include="..\browser\src\CrossPlatform\Audio.fs">
+          <Link>Audio.fs</Link>
+        </Compile>
         <Compile Include="..\browser\src\CrossPlatform\Ray.fs">
           <Link>Ray.fs</Link>
         </Compile>
@@ -302,6 +306,7 @@
         <EmbeddedResource Include="Assets\Sounds\Aieeee2 (enemy death).wav" />
         <EmbeddedResource Include="Assets\Sounds\DoorClose.wav" />
         <EmbeddedResource Include="Assets\Sounds\DoorOpen.wav" />
+        <EmbeddedResource Include="Assets\Sounds\GuardGunshot.wav" />
         <EmbeddedResource Include="Assets\StatusBar\background.png" />
         <EmbeddedResource Include="Assets\StatusBar\PIC00109.png" />
         <EmbeddedResource Include="Assets\StatusBar\PIC00110.png" />

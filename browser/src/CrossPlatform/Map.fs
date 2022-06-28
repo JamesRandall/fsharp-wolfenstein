@@ -111,6 +111,56 @@ let loadRawMap levelIndex = async {
     | _ -> raise (MapLoadException "Unexpected error")
 }
 
+let calculateAreasFromMap map doors =
+  let mutable areas = map |> List.map (fun row -> row |> List.map (fun _ -> -1) |> List.toArray) |> List.toArray
+  let mutable currentArea = 0
+  
+  let rec walk rowIndex colIndex : bool =
+    if rowIndex >= 0 && rowIndex < 64 && colIndex >= 0 && colIndex < 64 then
+      if areas.[rowIndex].[colIndex] = -1 then
+        match map.[rowIndex].[colIndex] with
+        | Cell.Empty
+        | Cell.TurningPoint _ ->
+          areas.[rowIndex].[colIndex] <- currentArea
+          walk (rowIndex-1) colIndex |> ignore
+          walk (rowIndex+1) colIndex |> ignore
+          walk rowIndex (colIndex-1) |> ignore
+          walk rowIndex (colIndex+1) |> ignore
+          true
+        | _ -> false
+      else
+        false
+    else
+      false
+  
+  {0..map.Length-1}
+  |> Seq.iter(fun rowIndex ->
+    {0..map.[rowIndex].Length-1}
+    |> Seq.iter (fun colIndex ->
+      if walk rowIndex colIndex then
+        currentArea <- currentArea + 1
+    )
+  )
+  
+  let doorsPatchedWithAreas =
+    doors
+    |> List.map(fun door ->
+      let doorX,doorY = door.MapPosition
+      match door.DoorDirection with
+      | DoorDirection.NorthSouth ->
+        { door with
+            AreaOne = areas.[doorY].[doorX-1]
+            AreaTwo = areas.[doorY].[doorX+1]
+        }
+      | DoorDirection.EastWest ->
+        { door with
+            AreaOne = areas.[doorY-1].[doorX]
+            AreaTwo = areas.[doorY+1].[doorX]
+        }
+    )
+  
+  areas, doorsPatchedWithAreas
+
 let loadLevelFromRawMap (raw:RawMap) =          
   let plane0,doors =
     {0..(raw.MapSize-1)}
@@ -142,6 +192,8 @@ let loadLevelFromRawMap (raw:RawMap) =
                 Offset = 0.
                 TimeRemainingInAnimationState = 0.<ms>
                 MapPosition = colIndex,rowIndex
+                AreaOne = -1
+                AreaTwo = -1
               }
             
             row @ [Cell.Door innerDoors.Length],(innerDoors @ [doorState])
@@ -203,14 +255,6 @@ let loadLevelFromRawMap (raw:RawMap) =
     )
   let playerStartingPosition = getStartingPosition raw.MapSize raw.Plane1
       
-  let startingDirectionVectorFromInt direction =
-    match direction with
-    | 0us -> { vX = -1. ; vY = 0. } // east - but we have to flip horizontal later so west here
-    | 1us -> { vX = 0. ; vY = -1. } // moving north
-    | 2us -> { vX = 1. ; vY = 0. } // west - but we have to flip horizontal later so east here
-    | 3us -> { vX = 0. ; vY = 1. } // moving south
-    | _ -> raise (MapLoadException $"Direction of {direction} int not between 0 and 3")
-    
   let startingMapDirectionFromInt directionOption =
     match directionOption with
     | Some direction ->
@@ -221,7 +265,6 @@ let loadLevelFromRawMap (raw:RawMap) =
       | 3us -> MapDirection.South
       | _ -> raise (MapLoadException $"Direction of {direction} int not between 0 and 3")
     | None -> MapDirection.None
-    
   
   let standingOrMoving baseValue value =
     if value-baseValue < 4us then EnemyStateType.Standing else EnemyStateType.Path
@@ -247,6 +290,7 @@ let loadLevelFromRawMap (raw:RawMap) =
         FramesPerBlock = framesPerBlock
         TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState startingState
         IsFirstAttack = true // will be set to false after first attack
+        FireAtPlayerRequired = false
       }
     let guardEnemy = createEnemy 50 4 8 [90 ; 91 ; 92 ; 93 ; 95] [96 ; 97 ; 98] EnemyType.Guard
     let dogEnemy = createEnemy 99 3 8 [131 ; 132 ; 133 ; 134] [135 ; 136 ; 137] EnemyType.Dog
@@ -337,10 +381,19 @@ let loadLevelFromRawMap (raw:RawMap) =
           None
     )
     |> Seq.toList
+  
+  let flipHorizontal (x,y) =
+    raw.MapSize - 1 - x, y
+  
+  // due to our renderer we have to flip the x co-ordinate
+  let map = patchedPlane0 |> List.map List.rev
+  let doors = doors |> List.map(fun door -> { door with MapPosition = door.MapPosition |> flipHorizontal })
+  let areas, updatedDoors = calculateAreasFromMap map doors
     
   { Width = raw.MapSize
     Height = raw.MapSize
-    Plane0 = patchedPlane0 |> List.map List.rev   
+    Map = map
+    Areas = areas |> FSharp.Collections.Array.map FSharp.Collections.Array.toList |> FSharp.Collections.Array.toList
     PlayerStartingPosition = playerStartingPosition //|> reverseCamera
     GameObjects = gameObjects
     // This will only include the nearest enemy as a game object - useful for testing sometimes
@@ -348,7 +401,7 @@ let loadLevelFromRawMap (raw:RawMap) =
       gameObjects
       |> List.sortBy(fun go -> go.BasicGameObject.UnsquaredDistanceFromPlayer)
       |> List.filter(fun go -> match go with GameObject.Enemy _ -> true | _ -> false) |> List.take 1*)
-    Doors = doors
+    Doors = updatedDoors
   }
   
 let getWeapon (sprites:Texture array) weaponType scaleSprite =
