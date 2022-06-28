@@ -2,6 +2,7 @@ module App.Utils
 
 open System.IO
 open System.Reflection
+open App.Model
 
 let loadAsset assetName = async {
   use stream = Assembly.GetEntryAssembly().GetManifestResourceStream($"FSharpWolfenstein.Desktop.Assets.{assetName}")
@@ -19,3 +20,11 @@ let loadAssetBytes assetName =
   result
   
 let log (message:string) = System.Console.WriteLine message
+
+let diagnoseCompositeAreas (compositeAreas:CompositeArea list) =
+  compositeAreas
+  |> List.iter(fun ca ->
+    if ca.ConnectedTo |> Set.count > 1 then
+      let diag = ca.ConnectedTo |> Set.map(fun i -> $"{i}") |> String.concat ","
+      log $"Area: {ca.Area}, Composite: [{diag}]"
+  )

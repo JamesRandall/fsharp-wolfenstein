@@ -80,6 +80,33 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
       playSoundEffect game doorPosition SoundEffect.DoorOpen
       { doorState with Status = DoorStatus.Opening ; TimeRemainingInAnimationState = doorOpeningTime }
     | _ -> doorState
+    
+  let updateCompositeAreas doorState compositeAreas =
+    let updatedAreas =
+      match doorState.Status with
+      | DoorStatus.Opening ->
+        compositeAreas
+        |> List.map(fun ca ->
+          if ca.ConnectedTo |> Set.contains doorState.AreaOne && not (ca.ConnectedTo |> Set.contains doorState.AreaTwo) then
+            { ca with ConnectedTo = ca.ConnectedTo |> Set.add doorState.AreaTwo }
+          elif ca.ConnectedTo |> Set.contains doorState.AreaTwo && not (ca.ConnectedTo |> Set.contains doorState.AreaOne) then
+            { ca with ConnectedTo = ca.ConnectedTo |> Set.add doorState.AreaOne }
+          else
+            ca
+        )
+      | DoorStatus.Closed ->
+        compositeAreas
+        |> List.map(fun ca ->
+          if ca.Area <> doorState.AreaOne && ca.ConnectedTo |> Seq.contains doorState.AreaOne then
+            { ca with ConnectedTo = ca.ConnectedTo |> Set.remove doorState.AreaOne }
+          elif ca.Area <> doorState.AreaTwo && ca.ConnectedTo |> Seq.contains doorState.AreaTwo then
+            { ca with ConnectedTo = ca.ConnectedTo |> Set.remove doorState.AreaTwo }
+          else
+            ca
+        )
+      | _ -> compositeAreas
+    //Utils.diagnoseCompositeAreas updatedAreas
+    updatedAreas
        
   let handleAction (game:Game) =
     if renderingResult.DistanceToWallInFrontOfPlayer <= actionDistanceTolerance &&
@@ -90,39 +117,45 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
         let newDoorState = tryOpenDoor game.Doors.[doorIndex] 
         { game with
             Doors = game.Doors |> List.mapi(fun i d -> if i = doorIndex then newDoorState else d)
+            CompositeAreas = game.CompositeAreas |> updateCompositeAreas newDoorState
         }
       | _ -> game
     else
       game
       
   let updateTransitioningDoors game =
-    let newDoors =
+    let newDoors,compositeAreas =
       game.Doors
-      |> List.map(fun doorState ->
+      |> List.fold(fun (updatedDoors,updatedCompositeAreas:CompositeArea list) doorState ->
         let newTimeRemainingInAnimationState = doorState.TimeRemainingInAnimationState - frameTime
-        match doorState.Status with
-        | DoorStatus.Opening ->
-          if newTimeRemainingInAnimationState < 0.<ms> then
-            { doorState with Status = DoorStatus.Open ; TimeRemainingInAnimationState = doorOpenTime ; Offset = 64 }
-          else
-            let newOffset = (doorOpeningTime - newTimeRemainingInAnimationState) / doorOpeningTime * 64.
-            { doorState with TimeRemainingInAnimationState = newTimeRemainingInAnimationState ; Offset = newOffset }
-        | DoorStatus.Open ->
-          if newTimeRemainingInAnimationState < 0.<ms> then
-            let doorPosition = Vector2D.CreateFromMapPosition doorState.MapPosition
-            playSoundEffect game doorPosition SoundEffect.DoorClose
-            { doorState with Status = DoorStatus.Closing ; TimeRemainingInAnimationState = doorOpeningTime }
-          else
-            { doorState with TimeRemainingInAnimationState = newTimeRemainingInAnimationState }
-        | DoorStatus.Closing ->
-          if newTimeRemainingInAnimationState < 0.<ms> then
-            { doorState with Status = DoorStatus.Closed ; TimeRemainingInAnimationState = doorOpeningTime ; Offset = 0. }
-          else
-            let newOffset = 64. - ((doorOpeningTime - newTimeRemainingInAnimationState) / doorOpeningTime * 64.)
-            { doorState with TimeRemainingInAnimationState = newTimeRemainingInAnimationState ; Offset = newOffset }
-        | _ -> doorState
-      )
-    { game with Doors = newDoors }
+        let newDoorState, newCompositeAreas =
+          match doorState.Status with
+          | DoorStatus.Opening ->
+            if newTimeRemainingInAnimationState < 0.<ms> then
+              { doorState with Status = DoorStatus.Open ; TimeRemainingInAnimationState = doorOpenTime ; Offset = 64 },updatedCompositeAreas
+            else
+              let newOffset = (doorOpeningTime - newTimeRemainingInAnimationState) / doorOpeningTime * 64.
+              { doorState with TimeRemainingInAnimationState = newTimeRemainingInAnimationState ; Offset = newOffset },updatedCompositeAreas
+          | DoorStatus.Open ->
+            if newTimeRemainingInAnimationState < 0.<ms> then
+              let doorPosition = Vector2D.CreateFromMapPosition doorState.MapPosition
+              playSoundEffect game doorPosition SoundEffect.DoorClose
+              { doorState with Status = DoorStatus.Closing ; TimeRemainingInAnimationState = doorOpeningTime },updatedCompositeAreas
+            else
+              { doorState with TimeRemainingInAnimationState = newTimeRemainingInAnimationState },updatedCompositeAreas
+          | DoorStatus.Closing ->
+            if newTimeRemainingInAnimationState < 0.<ms> then
+              let updatedDoorState =
+                { doorState with Status = DoorStatus.Closed ; TimeRemainingInAnimationState = doorOpeningTime ; Offset = 0. }
+              updatedDoorState, game.CompositeAreas |> updateCompositeAreas updatedDoorState
+            else
+              let newOffset = 64. - ((doorOpeningTime - newTimeRemainingInAnimationState) / doorOpeningTime * 64.)
+              { doorState with TimeRemainingInAnimationState = newTimeRemainingInAnimationState ; Offset = newOffset },updatedCompositeAreas
+          | _ -> doorState,updatedCompositeAreas
+        // take care to do an append here as the door lists are index sensitive so we need to keep them in the same order
+        updatedDoors @ [newDoorState],newCompositeAreas
+      ) ([],game.CompositeAreas)
+    { game with Doors = newDoors ; CompositeAreas = compositeAreas }
     
     
   let handleFiring game =
@@ -212,7 +245,7 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
             { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
           | _ -> enemy |> GameObject.Enemy
       | EnemyStateType.Chase _
-      | EnemyStateType.Path ->
+      | EnemyStateType.Path _ ->
         if timeRemainingInAnimationFrame < 0.<ms> then
           let nextFrame =
             if enemy.CurrentAnimationFrame + 1 > enemy.NumberOfMovementAnimationFrames then 0 else enemy.CurrentAnimationFrame + 1
@@ -233,7 +266,7 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
         | EnemyType.Dog -> innerGame // dogs cannot open doors (well mine can, but game dogs can't!)
         | _ ->
           match enemy.State,enemy.DirectionVector with
-          | EnemyStateType.Path, Some direction
+          | EnemyStateType.Path _, Some direction
           | EnemyStateType.Chase _, Some direction ->
             let maxDistanceToCheck = direction.Normalize().Abs()*rangeToOpenDoorsAt
             let setup () = false, enemy.BasicGameObject.Position.vX, enemy.BasicGameObject.Position.vY, direction
@@ -245,10 +278,12 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
             if isHit then
               match game.Map.[hitMapY].[hitMapX] with
               | Cell.Door doorIndex ->
+                let newDoorState = tryOpenDoor innerGame.Doors.[doorIndex]
                 { innerGame with
                     Doors =
                       innerGame.Doors
-                      |> List.mapi (fun i d -> if i = doorIndex then tryOpenDoor innerGame.Doors.[i] else d)
+                      |> List.mapi (fun i d -> if i = doorIndex then newDoorState else d)
+                    CompositeAreas = innerGame.CompositeAreas |> updateCompositeAreas  newDoorState
                 }
               | _ -> innerGame
             else

@@ -1,4 +1,5 @@
 module App.Utils
+open App.Model
 open Fable.SimpleHttp
 open Browser
 
@@ -18,3 +19,11 @@ let loadAsset assetName = async {
 }
 
 let log (message:string) = console.log message
+
+let diagnoseCompositeAreas (compositeAreas:CompositeArea list) =
+  compositeAreas
+  |> List.iter(fun ca ->
+    if ca.ConnectedTo |> Set.count > 1 then
+      let diag = ca.ConnectedTo |> Set.map(fun i -> $"{i}") |> String.concat ","
+      log $"Area: {ca.Area}, Composite: [{diag}]"
+  )

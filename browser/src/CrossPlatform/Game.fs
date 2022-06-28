@@ -7,6 +7,7 @@ open Update
 let private initialGameState =
   { Map = []
     Areas = []
+    CompositeAreas = []
     Player = {
       Score = 0<points>
       Health = 100<hp>
@@ -45,10 +46,12 @@ let init statusBarScale initScene = async {
   let updateControlState game controlState =
     { game with ControlState = game.ControlState ^^^ controlState }
   
-  let level = Map.loadLevelFromRawMap rawMap
+  let level = Map.loadLevelFromRawMap DifficultyLevel.IAmDeathIncarnate rawMap
   let gameState =
     { initialGameState with
         Map = level.Map
+        Areas = level.Areas
+        CompositeAreas = {0..level.NumberOfAreas-1} |> Seq.map(fun i -> { Area = i ; ConnectedTo = [i] |> Set.ofList }) |> Seq.toList 
         Camera = level.PlayerStartingPosition
         GameObjects = level.GameObjects
         Player = {

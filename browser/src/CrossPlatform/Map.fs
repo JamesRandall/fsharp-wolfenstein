@@ -9,6 +9,69 @@ exception MapLoadException of string
 exception PlayerStartingPositionNotFoundException
 exception InvalidDoorException
 
+let private startingHitPoints difficultyLevel enemyType =
+  match difficultyLevel with
+  | DifficultyLevel.CanIPlayDaddy ->
+    match enemyType with 
+    | Guard -> 25
+    | Officer -> 50
+    | SS -> 100
+    | Dog -> 1
+    | Zombie -> 45
+    | FakeAdolf -> 200
+    | Adolf -> 800
+    | Fettgesicht -> 850
+    | Schabbs -> 850
+    | Gretel -> 850
+    | Hans -> 850
+    | Otto -> 850
+    | Ghost -> 25
+  | DifficultyLevel.DontHurtMe ->
+    match enemyType with 
+    | Guard -> 25
+    | Officer -> 50
+    | SS -> 100
+    | Dog -> 1
+    | Zombie -> 55
+    | FakeAdolf -> 300
+    | Adolf -> 950
+    | Fettgesicht -> 950
+    | Schabbs -> 950
+    | Gretel -> 850
+    | Hans -> 950
+    | Otto -> 950
+    | Ghost -> 25
+  | DifficultyLevel.BringEmOn ->
+    match enemyType with 
+    | Guard -> 25
+    | Officer -> 50
+    | SS -> 100
+    | Dog -> 1
+    | Zombie -> 55
+    | FakeAdolf -> 400
+    | Adolf -> 1050
+    | Fettgesicht -> 1050
+    | Schabbs -> 1550
+    | Gretel -> 1050
+    | Hans -> 1050
+    | Otto -> 1050
+    | Ghost -> 25
+  | DifficultyLevel.IAmDeathIncarnate ->
+    match enemyType with 
+    | Guard -> 25
+    | Officer -> 50
+    | SS -> 100
+    | Dog -> 1
+    | Zombie -> 65
+    | FakeAdolf -> 500
+    | Adolf -> 1200
+    | Fettgesicht -> 1200
+    | Schabbs -> 2400
+    | Gretel -> 1200
+    | Hans -> 1200
+    | Otto -> 1200
+    | Ghost -> 25
+
 let mapFromTextures source =
   source
   |> List.map(fun row ->
@@ -148,20 +211,22 @@ let calculateAreasFromMap map doors =
       let doorX,doorY = door.MapPosition
       match door.DoorDirection with
       | DoorDirection.NorthSouth ->
+        areas.[doorY].[doorX] <- areas.[doorY].[doorX-1]
         { door with
             AreaOne = areas.[doorY].[doorX-1]
             AreaTwo = areas.[doorY].[doorX+1]
         }
       | DoorDirection.EastWest ->
+        areas.[doorY].[doorX] <- areas.[doorY-1].[doorX]
         { door with
             AreaOne = areas.[doorY-1].[doorX]
             AreaTwo = areas.[doorY+1].[doorX]
         }
     )
   
-  areas, doorsPatchedWithAreas
+  areas, doorsPatchedWithAreas, currentArea
 
-let loadLevelFromRawMap (raw:RawMap) =          
+let loadLevelFromRawMap difficulty (raw:RawMap) =          
   let plane0,doors =
     {0..(raw.MapSize-1)}
     |> Seq.fold(fun (rows,outerDoors) rowIndex ->
@@ -267,7 +332,7 @@ let loadLevelFromRawMap (raw:RawMap) =
     | None -> MapDirection.None
   
   let standingOrMoving baseValue value =
-    if value-baseValue < 4us then EnemyStateType.Standing else EnemyStateType.Path
+    if value-baseValue < 4us then EnemyStateType.Standing else EnemyStateType.Path (-1,-1)
   
   let gameObjects =
     let createEnemy spriteIndex spriteBlocks framesPerBlock deathSprites attackingSprites enemyType x y directionIntOption startingState =
@@ -291,6 +356,7 @@ let loadLevelFromRawMap (raw:RawMap) =
         TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState startingState
         IsFirstAttack = true // will be set to false after first attack
         FireAtPlayerRequired = false
+        HitPoints = startingHitPoints difficulty enemyType
       }
     let guardEnemy = createEnemy 50 4 8 [90 ; 91 ; 92 ; 93 ; 95] [96 ; 97 ; 98] EnemyType.Guard
     let dogEnemy = createEnemy 99 3 8 [131 ; 132 ; 133 ; 134] [135 ; 136 ; 137] EnemyType.Dog
@@ -320,7 +386,7 @@ let loadLevelFromRawMap (raw:RawMap) =
         elif value >= 108us then
           // useful for debugging if you want a single enemy
           // find their location in maped42 and enter the co-ordinates below 
-          //if colIndex = 39 && rowIndex = 61 then
+          //if colIndex = 38 && rowIndex = 33 then
             let enemy =
               // guards
               // TODO: tidy this up, crying out for a pipeline
@@ -348,11 +414,11 @@ let loadLevelFromRawMap (raw:RawMap) =
                 { deadGuard with CurrentAnimationFrame = deadGuard.DeathSpriteIndexes.Length-1 } |> Some
                 
               elif 138us <= value && value < 142us then
-                dogEnemy colIndex rowIndex (Some ((value-138us) % 4us)) EnemyStateType.Path |> Some
+                dogEnemy colIndex rowIndex (Some ((value-138us) % 4us)) (EnemyStateType.Path (-1,-1)) |> Some
               elif 174us <= value && value < 178us then
-                dogEnemy colIndex rowIndex (Some ((value-174us) % 4us)) EnemyStateType.Path |> Some
+                dogEnemy colIndex rowIndex (Some ((value-174us) % 4us)) (EnemyStateType.Path (-1,-1)) |> Some
               elif 210us <= value && value < 214us then
-                dogEnemy colIndex rowIndex (Some ((value-210us) % 4us)) EnemyStateType.Path |> Some
+                dogEnemy colIndex rowIndex (Some ((value-210us) % 4us)) (EnemyStateType.Path (-1,-1)) |> Some
                 
               elif 216us <= value && value < 224us then
                 zombieEnemy colIndex rowIndex (Some ((value-216us) % 4us)) (value |> standingOrMoving 216us) |> Some
@@ -381,6 +447,23 @@ let loadLevelFromRawMap (raw:RawMap) =
           None
     )
     |> Seq.toList
+    |> List.map(fun gameObject ->
+      match gameObject with
+      | GameObject.Enemy e ->
+        // We set the path target here for any enemies on a path - its easier to do here when we have all the base data
+        // we need than to juggle in the initial construction
+        (
+          match e.State with
+          | EnemyStateType.Path _ ->
+            let deltaX, deltaY = e.Direction.ToDelta()
+            let posX, posY = e.BasicGameObject.MapPosition
+            let targetX, targetY = posX + deltaX, posY + deltaY
+            { e with State = EnemyStateType.Path (targetX,targetY) }
+          | _ -> e
+        )
+        |> GameObject.Enemy
+      | _ -> gameObject
+    )
   
   let flipHorizontal (x,y) =
     raw.MapSize - 1 - x, y
@@ -388,12 +471,13 @@ let loadLevelFromRawMap (raw:RawMap) =
   // due to our renderer we have to flip the x co-ordinate
   let map = patchedPlane0 |> List.map List.rev
   let doors = doors |> List.map(fun door -> { door with MapPosition = door.MapPosition |> flipHorizontal })
-  let areas, updatedDoors = calculateAreasFromMap map doors
+  let areas, updatedDoors, numberOfAreas = calculateAreasFromMap map doors
     
   { Width = raw.MapSize
     Height = raw.MapSize
     Map = map
     Areas = areas |> FSharp.Collections.Array.map FSharp.Collections.Array.toList |> FSharp.Collections.Array.toList
+    NumberOfAreas = numberOfAreas+1
     PlayerStartingPosition = playerStartingPosition //|> reverseCamera
     GameObjects = gameObjects
     // This will only include the nearest enemy as a game object - useful for testing sometimes

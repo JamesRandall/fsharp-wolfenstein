@@ -1,5 +1,6 @@
 module App.Model
 
+open System.Collections.Generic
 open App.PlatformModel
 
 [<Measure>] type hp
@@ -8,6 +9,12 @@ open App.PlatformModel
 [<Measure>] type radians
 [<Measure>] type degrees
 
+[<RequireQualifiedAccess>]
+type DifficultyLevel =
+  | CanIPlayDaddy
+  | DontHurtMe
+  | BringEmOn
+  | IAmDeathIncarnate
 
 type WallRenderingResult =
   { ZIndexes: float list
@@ -208,7 +215,7 @@ type EnemyStateType =
   | Standing
   | Ambushing
   | Attack
-  | Path
+  | Path of int*int
   | Pain
   | Shoot
   | Chase of int*int // co-ordinates we are moving to as part of the chase
@@ -240,6 +247,7 @@ type Enemy =
     State: EnemyStateType
     IsFirstAttack: bool // shoud start at true and be set to false after first attack
     FireAtPlayerRequired: bool // set to true during the update and AI loop if the enemy has fired at the player that frame
+    HitPoints: int
   }
   member this.DirectionVector = this.Direction.ToVector()
   member this.StationarySpriteBlockIndex = this.BasicGameObject.SpriteIndex
@@ -250,14 +258,14 @@ type Enemy =
     match this.State with
     | EnemyStateType.Standing -> this.StationarySpriteBlockIndex
     | EnemyStateType.Chase _
-    | EnemyStateType.Path -> this.MovementSpriteBlockIndex this.CurrentAnimationFrame
+    | EnemyStateType.Path _ -> this.MovementSpriteBlockIndex this.CurrentAnimationFrame
     | EnemyStateType.Attack -> this.AttackSpriteIndexes.[this.CurrentAnimationFrame]
     | _ -> this.BasicGameObject.SpriteIndex
   static member AnimationTimeForState state =
     match state with
     | EnemyStateType.Attack -> 200.<ms>
     | EnemyStateType.Chase _ -> 100.<ms>
-    | EnemyStateType.Path -> 200.<ms>
+    | EnemyStateType.Path _ -> 200.<ms>
     | EnemyStateType.Dead | EnemyStateType.Die -> 100.<ms>
     | _ -> 0.<ms>
   member this.SpriteIndexForAnimationFrame =
@@ -355,6 +363,7 @@ type WolfensteinMap =
     Height: int
     Map: Cell list list
     Areas: int list list
+    NumberOfAreas: int
     GameObjects: GameObject list
     PlayerStartingPosition: Camera
     // we store door state outside of the map and store an index to them in the map
@@ -394,9 +403,15 @@ type ViewportFilter =
   | None
   | Overlay of OverlayAnimation  
 
+type CompositeArea =
+  { Area: int
+    ConnectedTo: int Set
+  }
+
 type Game =
   { Map: Cell list list
     Areas: int list list
+    CompositeAreas: CompositeArea list
     GameObjects: GameObject list
     Player: Player
     Camera: Camera

@@ -98,6 +98,8 @@ let private soundEffects =
     |> ignore
     
     let playSound (volume:float) =
+      //al.SetSourceProperty(source, SourceInteger.)
+      al.SetSourceProperty(source, SourceFloat.Gain, volume |> float32)
       al.SetSourceProperty(source, SourceInteger.Buffer, buffer)
       al.SourcePlay(source)
       
@@ -114,5 +116,5 @@ let playSoundEffectAtVolume volume soundEffect =
   | true,player -> player volume
   | _ -> Utils.log $"Missing sound effect {soundEffect}"
   
-let playSoundEffect soundEffect = playSoundEffectAtVolume 100. soundEffect
+let playSoundEffect soundEffect = playSoundEffectAtVolume 1. soundEffect
 

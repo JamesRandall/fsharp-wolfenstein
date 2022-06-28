@@ -351,70 +351,39 @@ let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) (enemy,game) =
       ({ enemy with BasicGameObject = { enemy.BasicGameObject with Position = targetPosition } }
       |> createChaseState canSeePlayer game),game
     
-  | EnemyStateType.Path, Some direction ->
+  | EnemyStateType.Path (targetMapX, targetMapY), Some direction ->
     let enemyVelocityUnitsPerSecond = 0.5
-    // A character entering a turning point causes it to turn in the direction the turning point indicates.
-    //
-    // Fast moving characters and/or low framerates could cause a character to essentially "skip" over a square and
-    // so rather than check the new position on the map for a turning point we cast a ray between the previous position
-    // and the new position looking for a hit of a turning point.
-    //
-    // As a fail safe if we don't hit a turning point we simply reverse the direction
-    
-    // we need to limit velocity to a single map unit at a time or we can skip a unit and fall off the map
-    let velocityBasedDelta = (direction * (frameTime / 1000.<ms> * enemyVelocityUnitsPerSecond)).LimitToMapUnit()
-    let newPosition = enemy.BasicGameObject.Position + velocityBasedDelta
-    
-    let maxDistanceToCheck = (newPosition - enemy.BasicGameObject.Position).Abs()
-    
-    let castRay () =
-      let setup () = true, enemy.BasicGameObject.Position.vX, enemy.BasicGameObject.Position.vY, direction
-      let terminator (isHit, currentRayDistanceX, currentRayDistanceY, mapX, mapY, _) =
-        (not isHit) &&
-        (mapX >= 0 && mapX < game.Map.[0].Length && mapY >= 0 && mapY < game.Map.Length) &&
-        (abs currentRayDistanceX < maxDistanceToCheck.vX || abs currentRayDistanceY < maxDistanceToCheck.vY)
-      let isHit, _, _, _, _, hitMapX, hitMapY, _ = Ray.cast setup terminator game
-      let isWallHit = match game.Map.[hitMapY].[hitMapX] with | Cell.Wall _ -> true | _ -> false
-      isHit, isWallHit, hitMapX, hitMapY
-      
-    let isHit, isWallHit, hitMapX, hitMapY =
-      if newPosition.vY < 0. || newPosition.vY > 63. || newPosition.vX < 0. || newPosition.vX > 63. then
-        Utils.log "oops"
-      match game.Map.[int newPosition.vY].[int newPosition.vX] with
-      | Cell.TurningPoint tpDirection ->
-        if tpDirection = enemy.Direction then
-          false, false, int newPosition.vX, int newPosition.vY
-        else
-          true, false, int newPosition.vX, int newPosition.vY
-      | _ -> castRay ()
-    
-    // if we actually change direction then we must ensure the change of position is centered on the tile - otherwise
-    // we will find that gradually things will move into "off" positions and move in strange ways
-    let newDirection,finalPosition =
-      match isHit, isWallHit with
-      | true, false ->
-        // we only actually turn on a turning point if we have moved past the center of the cell / turning point
-        // and an easy way to figure that out is by comparing the distance to the new position based on the velocity
-        // with the distance to the turning point center - if the former is greater or equal to the latter then we
-        // have moved over the point
-        let turningPointPosition = { vX = float hitMapX + 0.5 ; vY = float hitMapY + 0.5 }
-        let existingDistanceToTurningPoint = (enemy.BasicGameObject.Position - turningPointPosition).Magnitude
-        let distanceToNewPosition = (newPosition - enemy.BasicGameObject.Position).Magnitude
-        if distanceToNewPosition >= existingDistanceToTurningPoint then       
-          (match game.Map.[hitMapY].[hitMapX] with
-          | Cell.TurningPoint newDirection -> newDirection
-          | Cell.Door _ -> enemy.Direction // if we hit a door keep walking, doors get opened by any characters heading towards them
-          | _ -> enemy.Direction.Reverse())
-          ,{ vX = float hitMapX + 0.5 ; vY = float hitMapY + 0.5 }
-        else
-          enemy.Direction,newPosition
-      | true, true -> enemy.Direction.Reverse(),{ vX = float hitMapX + 0.5 ; vY = float hitMapY + 0.5 }
-      | _ -> enemy.Direction,newPosition
-        
-    { enemy with
-        BasicGameObject = { enemy.BasicGameObject with Position = finalPosition }
-        Direction = newDirection
-    },game
+    let targetPosition = { vX = float targetMapX + 0.5 ; vY = float targetMapY + 0.5 }
+    let distanceToTarget = targetPosition - enemy.BasicGameObject.Position
+    let frameRateBasedDelta = (direction * (frameTime / 1000.<ms> * enemyVelocityUnitsPerSecond))
+    // if we have further to travel than we need to update this frame based on our velocity then
+    // we continue to move - alternatively if our velocity would take us past the target then we
+    // re-evaluate our path state 
+    if distanceToTarget.Magnitude > frameRateBasedDelta.Magnitude then
+      let newPosition = enemy.BasicGameObject.Position + frameRateBasedDelta
+      { enemy with BasicGameObject = { enemy.BasicGameObject with Position = newPosition } },game
+    else
+      // we re-evaluate our state
+      if canSeePlayer then
+        // if the patrolling guard can see the player then we break out into chase
+        (createChaseState canSeePlayer game enemy),game        
+      else
+        // otherwise move to the next cell on our path
+        let newDirection =
+          match game.Map.[targetMapY].[targetMapX] with
+          | Cell.TurningPoint tpDirection -> tpDirection
+          | _ -> enemy.Direction
+        let newDirectionX, newDirectionY = newDirection.ToDelta()
+        let newTargetX = targetMapX + newDirectionX
+        let newTargetY = targetMapY + newDirectionY
+        let turnedEnemy = 
+          { enemy with
+              BasicGameObject = { enemy.BasicGameObject with Position = targetPosition }
+              State = (EnemyStateType.Path (newTargetX,newTargetY))
+              Direction = newDirection
+          }
+        let canNowSeePlayer = turnedEnemy |> isPlayerVisibleToEnemy game
+        (if canNowSeePlayer then (createChaseState canSeePlayer game turnedEnemy) else turnedEnemy),game
   | _ -> enemy,game
     
 let applyAi frameTime game gameObject =
