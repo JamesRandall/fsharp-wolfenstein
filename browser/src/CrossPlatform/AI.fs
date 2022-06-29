@@ -237,10 +237,11 @@ let createChaseState canSeePlayer (game:Game) enemy =
       // not yet sure what that second part is about
       if enemy.State = EnemyStateType.Attack then
         false // attack never follows attack
-      elif distance = 0 then 
+      elif distance <= 1 then 
         true
       else
-        randomGenerator.Next(255) < 255 / distance
+        
+        randomGenerator.Next(255) < 255 / (distance / 2)
     if shouldShoot then
       createAttackState game enemy
     else
@@ -255,12 +256,6 @@ let getNextState canSeePlayer game enemy =
   //| EnemyStateType.Path, true // comment this line out to test patrolling without it being interrupted
   | EnemyStateType.Standing, true
   | EnemyStateType.Ambushing, true ->
-    (*(
-      [
-        fun () -> EnemyStateType.Attack
-        fun () -> EnemyStateType.Chase (0,0)
-      ] |> List.random
-    ) ()*)
     createChaseState canSeePlayer game enemy
   | EnemyStateType.Attack, _ ->
     // the frame time can only drop below zero when we have gone past the last frame and so we use
@@ -286,6 +281,7 @@ let firingOnPlayer canSeePlayer (enemy:Enemy,game:Game)  =
   // for sound propagation in the AI.
   // if (!areabyplayer[ob->areanumber])
   //	return;
+  
   let damage =
     if enemy.FireAtPlayerRequired && canSeePlayer then
       let enemyX,enemyY = enemy.BasicGameObject.MapPosition
@@ -351,8 +347,10 @@ let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) (enemy,game) =
       ({ enemy with BasicGameObject = { enemy.BasicGameObject with Position = targetPosition } }
       |> createChaseState canSeePlayer game),game
     
-  | EnemyStateType.Path (targetMapX, targetMapY), Some direction ->
+  | EnemyStateType.Path pathState, Some direction ->
     let enemyVelocityUnitsPerSecond = 0.5
+    let targetMapX = pathState.TargetX
+    let targetMapY = pathState.TargetY
     let targetPosition = { vX = float targetMapX + 0.5 ; vY = float targetMapY + 0.5 }
     let distanceToTarget = targetPosition - enemy.BasicGameObject.Position
     let frameRateBasedDelta = (direction * (frameTime / 1000.<ms> * enemyVelocityUnitsPerSecond))
@@ -364,7 +362,7 @@ let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) (enemy,game) =
       { enemy with BasicGameObject = { enemy.BasicGameObject with Position = newPosition } },game
     else
       // we re-evaluate our state
-      if canSeePlayer then
+      if canSeePlayer || pathState.ChaseOnTargetReached then
         // if the patrolling guard can see the player then we break out into chase
         (createChaseState canSeePlayer game enemy),game        
       else
@@ -379,7 +377,7 @@ let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) (enemy,game) =
         let turnedEnemy = 
           { enemy with
               BasicGameObject = { enemy.BasicGameObject with Position = targetPosition }
-              State = (EnemyStateType.Path (newTargetX,newTargetY))
+              State = (EnemyStateType.Path { pathState with TargetX = newTargetX ; TargetY = newTargetY })
               Direction = newDirection
           }
         let canNowSeePlayer = turnedEnemy |> isPlayerVisibleToEnemy game

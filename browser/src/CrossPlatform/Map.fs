@@ -332,7 +332,7 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
     | None -> MapDirection.None
   
   let standingOrMoving baseValue value =
-    if value-baseValue < 4us then EnemyStateType.Standing else EnemyStateType.Path (-1,-1)
+    if value-baseValue < 4us then EnemyStateType.Standing else EnemyStateType.Path PathState.Empty
   
   let gameObjects =
     let createEnemy spriteIndex spriteBlocks framesPerBlock deathSprites attackingSprites enemyType x y directionIntOption startingState =
@@ -414,11 +414,11 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
                 { deadGuard with CurrentAnimationFrame = deadGuard.DeathSpriteIndexes.Length-1 } |> Some
                 
               elif 138us <= value && value < 142us then
-                dogEnemy colIndex rowIndex (Some ((value-138us) % 4us)) (EnemyStateType.Path (-1,-1)) |> Some
+                dogEnemy colIndex rowIndex (Some ((value-138us) % 4us)) (EnemyStateType.Path PathState.Empty) |> Some
               elif 174us <= value && value < 178us then
-                dogEnemy colIndex rowIndex (Some ((value-174us) % 4us)) (EnemyStateType.Path (-1,-1)) |> Some
+                dogEnemy colIndex rowIndex (Some ((value-174us) % 4us)) (EnemyStateType.Path PathState.Empty) |> Some
               elif 210us <= value && value < 214us then
-                dogEnemy colIndex rowIndex (Some ((value-210us) % 4us)) (EnemyStateType.Path (-1,-1)) |> Some
+                dogEnemy colIndex rowIndex (Some ((value-210us) % 4us)) (EnemyStateType.Path PathState.Empty) |> Some
                 
               elif 216us <= value && value < 224us then
                 zombieEnemy colIndex rowIndex (Some ((value-216us) % 4us)) (value |> standingOrMoving 216us) |> Some
@@ -458,7 +458,7 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
             let deltaX, deltaY = e.Direction.ToDelta()
             let posX, posY = e.BasicGameObject.MapPosition
             let targetX, targetY = posX + deltaX, posY + deltaY
-            { e with State = EnemyStateType.Path (targetX,targetY) }
+            { e with State = EnemyStateType.Path { TargetX = targetX ; TargetY = targetY ; ChaseOnTargetReached = false } }
           | _ -> e
         )
         |> GameObject.Enemy

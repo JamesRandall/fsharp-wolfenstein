@@ -12,7 +12,7 @@ module Walls =
     let viewportWidth = width
     let viewportHeight = height
     
-    let initialWallRenderResult = { WallInFrontOfPlayer = -1,-1 ; DistanceToWallInFrontOfPlayer = -1 ; ZIndexes = [] ; SpriteInFrontOfPlayerIndexOption = None }
+    let initialWallRenderResult = { IsDoorInFrontOfPlayer = false ; WallInFrontOfPlayer = -1,-1 ; DistanceToWallInFrontOfPlayer = -1 ; ZIndexes = [] ; SpriteInFrontOfPlayerIndexOption = None }
     let viewportStart = 0.
     let viewportEnd = viewportWidth-1.
     {viewportStart..viewportEnd}
@@ -44,61 +44,67 @@ module Walls =
       let startY = max (-lineHeight/2. + viewportHeight/2.) 0.
       let endY = min (lineHeight/2. + viewportHeight/2.) (viewportHeight-1.)
       
-      match game.Map.[hitMapY].[hitMapX] with
-      | Cell.Wall wall ->
-        let wallX =
-          match side with
-          | Side.NorthSouth -> posY + perpendicularWallDistance * rayDirection.vY
-          | Side.EastWest -> posX + perpendicularWallDistance * rayDirection.vX
-        let clampedWallX = wallX - (floor wallX)
-        let rawTextureX = int (clampedWallX * textureWidth)
-        let textureX,textureIndex =
-          if side = Side.NorthSouth && rayDirection.vX > 0. then (textureWidth - float rawTextureX - 1.,wall.NorthSouthTextureIndex)
-          elif side = Side.EastWest && rayDirection.vY < 0. then (textureWidth - float rawTextureX - 1.,wall.EastWestTextureIndex)
-          else (float rawTextureX,if side = Side.NorthSouth then wall.NorthSouthTextureIndex else wall.EastWestTextureIndex)
-        
-        let lineHeight = viewportHeight / perpendicularWallDistance
-        let step = 1.0 * textureHeight / lineHeight
-        let texPos = (startY - viewportHeight/2. + lineHeight/2.) * step
-        let textureOffset = getTextureStripOffset textureIndex (int textureX)
-        
-        {0..int (endY-startY)}
-        |> Seq.iter(fun drawY ->
-          let textureY = int (texPos+step*float drawY) &&& (int textureHeight-1)
-          let color = getTextureColor textureOffset textureY
-          setPixel color (int viewportX) (drawY+int startY)
-        )
-      | Cell.Door doorIndex ->
-        let door = game.Doors.[doorIndex]
-        let wallX =
-          if side = Side.NorthSouth then
-            posY + perpendicularWallDistance * rayDirection.vY
-          else
-            posX + perpendicularWallDistance * rayDirection.vX
-        let clampedWallX = wallX - (floor wallX)
-        let rawTextureX = int (clampedWallX * textureWidth)
-        
-        let textureX = max 0. (textureWidth - float rawTextureX - 1. - float door.Offset)
-        let textureIndex = door.TextureIndex
+      let renderedPartOfDoor = 
+        match game.Map.[hitMapY].[hitMapX] with
+        | Cell.Wall wall ->
+          let wallX =
+            match side with
+            | Side.NorthSouth -> posY + perpendicularWallDistance * rayDirection.vY
+            | Side.EastWest -> posX + perpendicularWallDistance * rayDirection.vX
+          let clampedWallX = wallX - (floor wallX)
+          let rawTextureX = int (clampedWallX * textureWidth)
+          let textureX,textureIndex =
+            if side = Side.NorthSouth && rayDirection.vX > 0. then (textureWidth - float rawTextureX - 1.,wall.NorthSouthTextureIndex)
+            elif side = Side.EastWest && rayDirection.vY < 0. then (textureWidth - float rawTextureX - 1.,wall.EastWestTextureIndex)
+            else (float rawTextureX,if side = Side.NorthSouth then wall.NorthSouthTextureIndex else wall.EastWestTextureIndex)
           
-        let lineHeight = viewportHeight / perpendicularWallDistance
-        let step = 1.0 * textureHeight / lineHeight
-        let texPos = (startY - viewportHeight/2. + lineHeight/2.) * step
-        let textureOffset = getTextureStripOffset textureIndex (int textureX)
-        
-        {0..int (endY-startY)}
-        |> Seq.iter(fun drawY ->
-          let textureY = int (texPos+step*float drawY) &&& (int textureHeight-1)
-          let color = getTextureColor textureOffset textureY
-          setPixel color (int viewportX) (drawY+int startY)
-        )
-      | _ -> ()
+          let lineHeight = viewportHeight / perpendicularWallDistance
+          let step = 1.0 * textureHeight / lineHeight
+          let texPos = (startY - viewportHeight/2. + lineHeight/2.) * step
+          let textureOffset = getTextureStripOffset textureIndex (int textureX)
+          
+          {0..int (endY-startY)}
+          |> Seq.iter(fun drawY ->
+            let textureY = int (texPos+step*float drawY) &&& (int textureHeight-1)
+            let color = getTextureColor textureOffset textureY
+            setPixel color (int viewportX) (drawY+int startY)
+          )
+          false
+        | Cell.Door doorIndex ->
+          let door = game.Doors.[doorIndex]
+          let wallX =
+            if side = Side.NorthSouth then
+              posY + perpendicularWallDistance * rayDirection.vY
+            else
+              posX + perpendicularWallDistance * rayDirection.vX
+          let clampedWallX = wallX - (floor wallX)
+          let rawTextureX = int (clampedWallX * textureWidth)
+          
+          let textureX = max 0. (textureWidth - float rawTextureX - 1. - float door.Offset)
+          let textureIndex = door.TextureIndex
+            
+          let lineHeight = viewportHeight / perpendicularWallDistance
+          let step = 1.0 * textureHeight / lineHeight
+          let texPos = (startY - viewportHeight/2. + lineHeight/2.) * step
+          let textureOffset = getTextureStripOffset textureIndex (int textureX)
+          
+          {0..int (endY-startY)}
+          |> Seq.iter(fun drawY ->
+            let textureY = int (texPos+step*float drawY) &&& (int textureHeight-1)
+            let color = getTextureColor textureOffset textureY
+            setPixel color (int viewportX) (drawY+int startY)
+          )
+          true
+        | _ -> false
       
       // set the zIndex for the strip
       { previousResult with
           ZIndexes = previousResult.ZIndexes @ [perpendicularWallDistance]
           WallInFrontOfPlayer = if viewportX = viewportWidth/2. then hitMapX,hitMapY else previousResult.WallInFrontOfPlayer
-          DistanceToWallInFrontOfPlayer = if viewportX = viewportWidth/2. then perpendicularWallDistance else previousResult.DistanceToWallInFrontOfPlayer
+          DistanceToWallInFrontOfPlayer =
+            if viewportX = viewportWidth/2. then perpendicularWallDistance else previousResult.DistanceToWallInFrontOfPlayer
+          IsDoorInFrontOfPlayer =
+            if viewportX = viewportWidth/2. then renderedPartOfDoor else previousResult.IsDoorInFrontOfPlayer
       } 
     ) initialWallRenderResult
     

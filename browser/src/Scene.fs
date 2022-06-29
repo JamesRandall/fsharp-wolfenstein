@@ -23,9 +23,8 @@ let private getViewportPosition (context:CanvasRenderingContext2D) =
   let statusBarHeight = 35. * zoom * viewportZoom
   let statusBarViewportSpace = round (statusBarHeight / 5.)
   let totalHeight = totalZoomedHeight + statusBarHeight + statusBarViewportSpace
-  
-  let top = max left (context.canvas.height/2. - totalHeight/2.)
-  
+  let topBasedOnHeight = (context.canvas.height/2. - totalHeight/2.) 
+  let top = topBasedOnHeight
   
   left,top,(top+totalZoomedHeight+statusBarViewportSpace),totalZoomedWidth,totalZoomedHeight
 

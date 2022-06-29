@@ -6,6 +6,8 @@ open App.AI
 
 let private weaponAnimationFrameTime = 100.<ms>
 let private actionDistanceTolerance = 0.75
+// doors are 0.5 recessed which means we need to extend the action activation distance
+let private actionDoorDistanceTolerance = actionDistanceTolerance + 0.5 
 let private doorOpeningTime = 1000.<ms>
 let private doorOpenTime = 5000.<ms>
 
@@ -109,8 +111,11 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
     updatedAreas
        
   let handleAction (game:Game) =
-    if renderingResult.DistanceToWallInFrontOfPlayer <= actionDistanceTolerance &&
-       game.ControlState &&& ControlState.Action > ControlState.None then
+    if (
+        (not renderingResult.IsDoorInFrontOfPlayer && renderingResult.DistanceToWallInFrontOfPlayer <= actionDistanceTolerance) ||
+        (renderingResult.IsDoorInFrontOfPlayer && renderingResult.DistanceToWallInFrontOfPlayer <= actionDoorDistanceTolerance)
+       )       
+       && game.ControlState &&& ControlState.Action > ControlState.None then
       let actionWallX, actionWallY = renderingResult.WallInFrontOfPlayer
       match game.Map.[actionWallY].[actionWallX] with
       | Cell.Door doorIndex ->

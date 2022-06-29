@@ -19,6 +19,7 @@ type DifficultyLevel =
 type WallRenderingResult =
   { ZIndexes: float list
     WallInFrontOfPlayer: int*int // x,y
+    IsDoorInFrontOfPlayer: bool
     DistanceToWallInFrontOfPlayer: float
     SpriteInFrontOfPlayerIndexOption: int option
   }
@@ -148,21 +149,50 @@ type Wall =
   
 [<RequireQualifiedAccess>]
 type SoundEffect =
-  | PlayerPistol
-  | EnemyDeathAaarrrg
-  | EnemyDeathAieeeeLow
-  | EnemyDeathAieeeeHigh
-  | DoorOpen
+  | UttGuards
+  | Dog
   | DoorClose
-  | GuardGunshot
+  | DoorOpen
+  | PlayerMachineGun
+  | PlayerPistol
+  | PlayerChainGun
+  | Hoofafo
+  | GutenTag
+  | Mutti
+  | GuardChainGun
+  | GuardMachineGun
+  | Aarggh
+  | Aieeee
+  | Ooof
+  | SecretDoor
+  | MeinLeben
+  | GuardPistol
+  | BubblesQuestion
+  | VictoryYeah
+  | Tick
   static member All =
-    [ SoundEffect.PlayerPistol
-      SoundEffect.EnemyDeathAaarrrg
-      SoundEffect.EnemyDeathAieeeeLow
-      SoundEffect.EnemyDeathAieeeeHigh
-      SoundEffect.DoorOpen
+    [
+      SoundEffect.UttGuards
+      SoundEffect.Dog
       SoundEffect.DoorClose
-      SoundEffect.GuardGunshot
+      SoundEffect.DoorOpen
+      SoundEffect.PlayerMachineGun
+      SoundEffect.PlayerPistol
+      SoundEffect.PlayerChainGun
+      SoundEffect.Hoofafo
+      SoundEffect.GutenTag
+      SoundEffect.Mutti
+      SoundEffect.GuardChainGun
+      SoundEffect.GuardMachineGun
+      SoundEffect.Aarggh
+      SoundEffect.Aieeee
+      SoundEffect.Ooof
+      SoundEffect.SecretDoor
+      SoundEffect.MeinLeben
+      SoundEffect.GuardPistol
+      SoundEffect.BubblesQuestion
+      SoundEffect.VictoryYeah
+      SoundEffect.Tick
     ]
   
 [<RequireQualifiedAccess>]
@@ -210,12 +240,19 @@ type EnemyType =
   | Otto
   | Ghost
   
+type PathState =
+  { TargetX: int
+    TargetY: int
+    ChaseOnTargetReached: bool
+  }
+  static member Empty = { TargetX = -1 ; TargetY = -1 ; ChaseOnTargetReached = false }
+  
 [<RequireQualifiedAccess>]
 type EnemyStateType =
   | Standing
   | Ambushing
   | Attack
-  | Path of int*int
+  | Path of PathState
   | Pain
   | Shoot
   | Chase of int*int // co-ordinates we are moving to as part of the chase

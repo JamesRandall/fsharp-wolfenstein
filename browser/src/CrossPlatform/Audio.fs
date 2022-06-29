@@ -4,6 +4,9 @@ open App.PlatformAudio
 
 let private random = System.Random()
 
+module List =
+  let random (set:List<'a>) = set.[random.Next(set.Length)]
+
 let isSoundInArea (game:Game) (position:Vector2D) =
   let soundX, soundY = int position.vX,int position.vY
   let playerX, playerY = game.PlayerMapPosition
@@ -33,17 +36,16 @@ let calculateVolumeAtDistance (game:Game) (position:Vector2D) =
     volume
 
 let playRandomEnemyDeathSoundEffectAtVolume (game:Game) (position:Vector2D) =
-  [ SoundEffect.EnemyDeathAaarrrg
-    SoundEffect.EnemyDeathAieeeeHigh
-    SoundEffect.EnemyDeathAieeeeLow
-  ].[random.Next(3)]
+  [ SoundEffect.Aarggh
+    SoundEffect.Aieeee
+  ] |> List.random
   |> playSoundEffectAtVolume (calculateVolumeAtDistance game position)
   
 let playAttackSound (game:Game) (position:Vector2D) enemyType =
   match enemyType with
-  | EnemyType.Guard -> SoundEffect.GuardGunshot
+  | EnemyType.Guard -> SoundEffect.GuardPistol
   // TODO: capture other firing (and dog chewing) sound
-  | _ -> SoundEffect.GuardGunshot
+  | _ -> SoundEffect.GuardPistol
   |> playSoundEffectAtVolume (calculateVolumeAtDistance game position)
   
 let playSoundEffect (game:Game) (position:Vector2D) soundEffect =
