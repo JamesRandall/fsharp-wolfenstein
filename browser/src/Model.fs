@@ -6,8 +6,10 @@ open App.PlatformModel
 [<Measure>] type hp
 [<Measure>] type points
 [<Measure>] type ms
+[<Measure>] type life
 [<Measure>] type radians
 [<Measure>] type degrees
+[<Measure>] type bullets
 
 [<RequireQualifiedAccess>]
 type DifficultyLevel =
@@ -338,6 +340,7 @@ type PlayerWeapon =
     CurrentFrame: int
     Damage: int
     AutoRepeat: bool
+    RequiresAmmunition: bool
   }
   member x.AnimationFrames = x.Sprites.Length
   member x.CurrentSprite = x.Sprites.[x.CurrentFrame]
@@ -366,12 +369,14 @@ type ControlState =
 
 type Player =
   { Score: int<points>
+    Lives: int<life>
     Health: int<hp>
     Radius: float // how much room does the player take up on the map
     CurrentWeaponIndex: int
-    Ammunition: int
+    Ammunition: int<bullets>
     Weapons: PlayerWeapon list
   }
+  member this.CurrentWeapon = this.Weapons.[this.CurrentWeaponIndex]
 
 type Camera =
   { Position: Vector2D
@@ -446,7 +451,8 @@ type CompositeArea =
   }
 
 type Game =
-  { Map: Cell list list
+  { Level: int
+    Map: Cell list list
     Areas: int list list
     CompositeAreas: CompositeArea list
     GameObjects: GameObject list
@@ -467,6 +473,7 @@ type StatusBarGraphics =
     Dead: Texture
     GrinFace: Texture
     GreyFace: Texture
+    Font: Texture array
   }
   
 let textureWidth = 64.

@@ -1,5 +1,6 @@
 namespace App.Render
 
+open App
 open App.Model
 open App.PlatformModel
   
@@ -225,6 +226,35 @@ module Weapons =
 
 module StatusBar =
   let drawStatusBar (statusBarGraphics:StatusBarGraphics) drawImage game =
+    let playerHp = game.Player.Health
     drawImage statusBarGraphics.Background 0. 0.
-    drawImage statusBarGraphics.GrinFace 128.0 1.0
+    let healthFace =
+      if playerHp > 0<hp> then        
+        let index = max 0 (statusBarGraphics.HealthFaces.Length - 1 - (playerHp / 16 |> int))
+        statusBarGraphics.HealthFaces.[index].[0]
+      else
+        statusBarGraphics.Dead
+    drawImage healthFace 128.0 1.0
+    
+    let drawNumber startX maximumLength (value:int) =
+      let textY = 13.
+      let textWidth = 8.
+      let numberAsString = sprintf "%d" (max 0 value)
+      let healthPercentageString = System.String(' ', maximumLength-numberAsString.Length) + numberAsString
+      let getFontImage character =
+        statusBarGraphics.Font.[if character = ' ' then 10 else ((character |> int) - ('0' |> int))]
+      healthPercentageString
+      |> Seq.fold (fun x value ->
+        drawImage (value |> getFontImage) x textY
+        x + textWidth
+      ) startX
+      |> ignore
+      
+    drawNumber 160. 3 (playerHp |> int)
+    drawNumber 104. 1 (game.Player.Lives |> int)
+    drawNumber 40. 6 (game.Player.Score |> int)
+    drawNumber 15. 1 (game.Level |> int)
+    drawNumber 209 2 (game.Player.Ammunition |> int)
+    
+    
     

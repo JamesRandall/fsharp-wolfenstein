@@ -342,6 +342,17 @@
         <EmbeddedResource Include="Assets\StatusBar\PIC00130.png" />
         <EmbeddedResource Include="Assets\StatusBar\PIC00131.png" />
         <EmbeddedResource Include="Assets\StatusBar\PIC00132.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Font\_.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Font\0.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Font\1.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Font\2.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Font\3.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Font\4.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Font\5.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Font\6.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Font\7.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Font\8.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Font\9.png" />
     </ItemGroup>
     <ItemGroup>
       <PackageReference Include="Silk.NET.Input" Version="2.15.0" />

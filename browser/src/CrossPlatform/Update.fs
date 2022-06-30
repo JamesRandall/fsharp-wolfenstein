@@ -173,15 +173,33 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
     let currentWeapon = game.Player.Weapons.[game.Player.CurrentWeaponIndex]
     match game.IsFiring, game.TimeToNextWeaponFrame, isFireKeyPressed with
     | false, None, true ->
-      let updatedWeapon = { currentWeapon with CurrentFrame = 1 }
-      
-      // begin firing
-      playSoundEffect game game.Camera.Position SoundEffect.PlayerPistol
-      { game with
-          IsFiring = true
-          TimeToNextWeaponFrame = Some weaponAnimationFrameTime
-          Player = updatedWeapon |> updatePlayerWithWeapon
-      },true
+      if (game.Player.CurrentWeapon.RequiresAmmunition && game.Player.Ammunition > 0<bullets>) || not (game.Player.CurrentWeapon.RequiresAmmunition) then
+        let updatedWeapon = { currentWeapon with CurrentFrame = 1 }
+        
+        // begin firing
+        playSoundEffect game game.Camera.Position SoundEffect.PlayerPistol
+        { game with
+            IsFiring = true
+            TimeToNextWeaponFrame = Some weaponAnimationFrameTime
+            Player = { (updatedWeapon |> updatePlayerWithWeapon) with Ammunition = game.Player.Ammunition - 1<bullets> } 
+        },true
+      elif game.Player.CurrentWeapon.RequiresAmmunition then
+        let newWeaponIndex = game.Player.Weapons |> List.findIndex(fun w -> not w.RequiresAmmunition) 
+        let newWeapon = game.Player.Weapons.[newWeaponIndex]
+        let updatedWeapon = { newWeapon with CurrentFrame = 1 }
+        
+        // begin firing
+        playSoundEffect game game.Camera.Position SoundEffect.PlayerPistol
+        { game with
+            IsFiring = true
+            TimeToNextWeaponFrame = Some weaponAnimationFrameTime
+            Player = { (updatedWeapon |> updatePlayerWithWeapon) with
+                        Ammunition = game.Player.Ammunition - 1<bullets>
+                        CurrentWeaponIndex = newWeaponIndex
+                     } 
+        },true
+      else
+        game,false
     | true, Some timeInMs, _ ->
       let newTimeRemaining = timeInMs - frameTime
       if newTimeRemaining < 0.<ms> then

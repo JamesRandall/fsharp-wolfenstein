@@ -501,24 +501,28 @@ let getWeapon (sprites:Texture array) weaponType scaleSprite =
       CurrentFrame = 0
       Damage = 25
       AutoRepeat = false
+      RequiresAmmunition = false
     }
   | WeaponType.Pistol ->
     { Sprites = ({421..425} |> toSpriteSet) @ ({424..422} |> toSpriteSet)
       CurrentFrame = 0
       Damage = 25
       AutoRepeat = false
+      RequiresAmmunition = true
     }
   | WeaponType.MachineGun ->
     { Sprites = {426..430} |> toSpriteSet
       CurrentFrame = 0
       Damage = 25
       AutoRepeat = true
+      RequiresAmmunition = true
     }
   | WeaponType.ChainGun ->
     { Sprites = {431..435} |> toSpriteSet
       CurrentFrame = 0
       Damage = 25
       AutoRepeat = true
+      RequiresAmmunition = true
     }
 
 (* | WeaponType.Knife -> { SpriteIndex = 416 ; Ammunition = System.Int32.MaxValue ; CurrentFrame = 0 ; Damage = 25 }

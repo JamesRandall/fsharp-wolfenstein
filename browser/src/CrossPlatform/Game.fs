@@ -8,13 +8,15 @@ let private initialGameState =
   { Map = []
     Areas = []
     CompositeAreas = []
+    Level = -1
     Player = {
+      Lives = 3<life>
       Score = 0<points>
       Health = 100<hp>
       Radius = 0.5
       Weapons = [  ]
       CurrentWeaponIndex = -1
-      Ammunition = 99
+      Ammunition = 9<bullets>
     }
     Camera = {
       Position = { vX = 12. ; vY = 6. }
@@ -49,6 +51,7 @@ let init statusBarScale initScene = async {
   let level = Map.loadLevelFromRawMap DifficultyLevel.IAmDeathIncarnate rawMap
   let gameState =
     { initialGameState with
+        Level = 1
         Map = level.Map
         Areas = level.Areas
         CompositeAreas = {0..level.NumberOfAreas-1} |> Seq.map(fun i -> { Area = i ; ConnectedTo = [i] |> Set.ofList }) |> Seq.toList 

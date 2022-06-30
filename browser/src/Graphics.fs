@@ -120,6 +120,9 @@ let loadStatusBar _ = async {
     loadTextureSet (fun i -> sprintf "assets/statusBar/PIC%05d.png" (i+109)) $"assets/sprites/s0.png" 24. 32. false {0..23}
   let! background =
     loadTexture "assets/statusBar/background.png" 304. 35.
+  let! statusBarNumbers =
+    loadTextureSet (fun i -> sprintf "assets/statusBar/font/%d.png" i) $"assets/sprites/s0.png" 8. 16. false {0..9}
+  let! statusBarSpace = loadTexture "assets/statusBar/font/_.png" 8. 16.
   return
     { Background = background
       HealthFaces = [|
@@ -134,6 +137,7 @@ let loadStatusBar _ = async {
       Dead = textureSet.[21]
       GrinFace = textureSet.[22]
       GreyFace = textureSet.[23]
+      Font = [| statusBarSpace |] |> Array.append statusBarNumbers
     }
 }
 

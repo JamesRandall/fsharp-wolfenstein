@@ -233,15 +233,17 @@ let createChaseState canSeePlayer (game:Game) enemy =
     let absDeltaY = abs (enemyY - playerY)
     let distance = if absDeltaX > absDeltaY then absDeltaX else absDeltaY
     let shouldShoot =
+      Utils.log $"Shoot Distance: {distance}"
       // original source: if (!dist || (dist==1 && ob->distance<0x4000) )
       // not yet sure what that second part is about
-      if enemy.State = EnemyStateType.Attack then
-        false // attack never follows attack
-      elif distance <= 1 then 
-        true
+      if distance <= 1 then
+        true 
+      //elif enemy.State = EnemyStateType.Attack then // attack never follows attack 
+        //false
+      elif enemy.State = EnemyStateType.Attack then // attack after attack has a lower chance 
+        randomGenerator.Next(255) < 255 / distance
       else
-        
-        randomGenerator.Next(255) < 255 / (distance / 2)
+        randomGenerator.Next(255) < 255 / (max 1 (distance/3*2))
     if shouldShoot then
       createAttackState game enemy
     else

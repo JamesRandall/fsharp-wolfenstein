@@ -69,6 +69,9 @@ let loadStatusBar scale = async {
     )
   let background =
     loadTexture "StatusBar.background.png"
+  let statusBarNumbers =
+    loadTextures false (fun i -> sprintf "StatusBar.Font.%d.png" i) {0..9}
+  let statusBarSpace = loadTexture "StatusBar.Font._.png"
   return
     { Background = background |> scaleSprite (float background.Width*scale) (float background.Height*scale)
       HealthFaces = [|
@@ -83,5 +86,8 @@ let loadStatusBar scale = async {
       Dead = textureSet.[21]
       GrinFace = textureSet.[22]
       GreyFace = textureSet.[23]
+      Font = [|
+        statusBarSpace |> scaleSprite (float statusBarSpace.Width*scale) (float statusBarSpace.Height*scale)
+      |] |> Array.append (statusBarNumbers |> Array.map (fun n -> n |> scaleSprite (float n.Width*scale) (float n.Height*scale)))
     }
 }
