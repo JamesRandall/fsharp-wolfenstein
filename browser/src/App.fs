@@ -60,7 +60,7 @@ initialisationPromise
     let mutable previousTimestamp = 0.
     let mutable currentGameState = initialGameState
     let rec wrappedGameLoop timestamp =
-      let timeInFrame = timestamp - previousTimestamp
+      let timeInFrame = min (1000./30.) (timestamp - previousTimestamp)
       previousTimestamp <- timestamp
       currentGameState <- gameLoop currentGameState (timeInFrame * 1.<ms>)
       window.requestAnimationFrame wrappedGameLoop |> ignore

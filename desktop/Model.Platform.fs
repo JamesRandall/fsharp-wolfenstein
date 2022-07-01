@@ -15,7 +15,8 @@ type Texture =
       (color >>> 16) &&& 0xFFul |> byte,
       (color >>> 8) &&& 0xFFul |> byte,
       color &&& 0xFFul |> byte);*)
-    this.Image[x,y] <- Rgba32(color)
+    if x >= 0 && x < this.Width && y >= 0 && y < this.Height then
+      this.Image[x,y] <- Rgba32(color)
   member this.getPixel x y =
     let color = this.Image[x,y]
     color.PackedValue

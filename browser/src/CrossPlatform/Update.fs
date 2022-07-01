@@ -364,18 +364,37 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
           { overlay with TimeRemainingUntilNextFrame = timeRemainingInFrame } |> ViewportFilter.Overlay
       | _ -> game.ViewportFilter
     { game with ViewportFilter = newFilter }
+    
+  let updatePixelDissolver (pixelDissolver:PixelDissolver) =
+    let lengthOfDissolve = 750.<ms>
+    let pixelsPerMs = float pixelDissolver.TotalPixels / lengthOfDissolve
+    Utils.log $"Remaining: {pixelDissolver.RemainingPixels.Length}, Drawn: {pixelDissolver.DrawnPixels.Length}"
+    Utils.log $"Frametime: {frameTime}, pixelsPerMs: {pixelsPerMs}"
+    // we use the original length and not the current set length here else we'll dissolve ever less pixels
+    let pixelsToDissolveThisFrame =
+      min (int (float pixelDissolver.TotalPixels / lengthOfDissolve * frameTime)) pixelDissolver.RemainingPixels.Length
+    Utils.log $"Total: {pixelDissolver.TotalPixels}, To dissolve: {pixelsToDissolveThisFrame}"
+    { pixelDissolver with
+        DrawnPixels = pixelDissolver.DrawnPixels @ (pixelDissolver.RemainingPixels |> List.take pixelsToDissolveThisFrame)
+        RemainingPixels = pixelDissolver.RemainingPixels |> List.skip pixelsToDissolveThisFrame
+    }    
 
-  game
-  |> (fun g -> match g with | IsActive ControlState.Forward -> move movementSpeed g | _ -> g)
-  |> (fun g -> match g with | IsActive ControlState.Backward -> move (-movementSpeed/2.) g | _ -> g)
-  |> (fun g -> match g with | IsActive ControlState.StrafingLeft -> strafe -movementSpeed g | _ -> g)
-  |> (fun g -> match g with | IsActive ControlState.StrafingRight -> strafe movementSpeed g | _ -> g)
-  |> (fun g -> match g with | IsActive ControlState.TurningLeft | IsActive ControlState.TurningRight -> rotate g | _ -> g)
-  // firing must happen before we move objects as this will cause a sort by depth and we rely on the object index for a
-  // potential hit that was recorded during scene rendering
-  |> handleFiring
-  |> updateEnemies
-  |> handleAction
-  |> updateTransitioningDoors
-  |> updateViewportFilter
-  |> sortGameObjectsByDescendingDistance
+  match game.PixelDissolver with
+  | Some pixelDissolver ->
+    //game
+    { game with PixelDissolver = Some (updatePixelDissolver pixelDissolver) }
+  | None ->  
+    game
+    |> (fun g -> match g with | IsActive ControlState.Forward -> move movementSpeed g | _ -> g)
+    |> (fun g -> match g with | IsActive ControlState.Backward -> move (-movementSpeed/2.) g | _ -> g)
+    |> (fun g -> match g with | IsActive ControlState.StrafingLeft -> strafe -movementSpeed g | _ -> g)
+    |> (fun g -> match g with | IsActive ControlState.StrafingRight -> strafe movementSpeed g | _ -> g)
+    |> (fun g -> match g with | IsActive ControlState.TurningLeft | IsActive ControlState.TurningRight -> rotate g | _ -> g)
+    // firing must happen before we move objects as this will cause a sort by depth and we rely on the object index for a
+    // potential hit that was recorded during scene rendering
+    |> handleFiring
+    |> updateEnemies
+    |> handleAction
+    |> updateTransitioningDoors
+    |> updateViewportFilter
+    |> sortGameObjectsByDescendingDistance

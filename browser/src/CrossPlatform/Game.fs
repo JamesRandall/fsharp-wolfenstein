@@ -30,6 +30,7 @@ let private initialGameState =
     TimeToNextWeaponFrame = None
     Doors = []
     ViewportFilter = ViewportFilter.None
+    PixelDissolver = None
   }
 
 let init statusBarScale initScene = async {
@@ -38,7 +39,7 @@ let init statusBarScale initScene = async {
   let! sprites = Graphics.loadSprites ()
   let! statusBarTextures = Graphics.loadStatusBar statusBarScale
   
-  let drawScene,_,viewportHeight = initScene ()
+  let drawScene,viewportWidth,viewportHeight = initScene ()
   
   let gameLoop (game:Game) (frameTime:float<ms>) =
     let updatedGameState =
@@ -66,6 +67,7 @@ let init statusBarScale initScene = async {
             CurrentWeaponIndex = 1
         }
         Doors = level.Doors
+        //PixelDissolver = Dissolver.create viewportWidth viewportHeight 2 |> Some
     }
 
   return gameLoop,updateControlState,gameState

@@ -218,11 +218,28 @@ module Objects =
     { wallRenderResult with SpriteInFrontOfPlayerIndexOption = spriteIndexInCenterOfViewportOption }
     
 module Weapons =
-  let drawPlayerWeapon canvasWidth canvasHeight drawImage game =
-    let height = canvasHeight
-    let xPos = canvasWidth/2. - height/2.
+  let drawPlayerWeapon canvasWidth canvasHeight getPixel setPixel isTransparent game =
     let weapon = game.Player.Weapons.[game.Player.CurrentWeaponIndex]
-    drawImage weapon.CurrentSprite xPos 0. height height
+    let aspectRatio = canvasHeight / float weapon.CurrentSprite.Height
+    let targetWidth = aspectRatio * float weapon.CurrentSprite.Width
+    let targetHeight = canvasHeight
+    let xPos = canvasWidth/2. - float targetWidth / 2.
+    let scaleX = targetWidth / float weapon.CurrentSprite.Width
+    let scaleY = targetHeight / float weapon.CurrentSprite.Height
+    
+    {0..(weapon.CurrentSprite.Width-1)}
+    |> Seq.iter(fun spriteX ->
+      {0..(weapon.CurrentSprite.Height-1)}
+      |> Seq.iter(fun spriteY ->
+        let color = getPixel weapon.CurrentSprite spriteX spriteY
+        if not (color |> isTransparent) && color <> 0ul then
+          let fromX = int (xPos + float spriteX * scaleX)
+          let toX = fromX + (int scaleX)
+          let fromY = int (float spriteY * scaleY)
+          let toY = fromY + (int scaleY)
+          {fromX..toX} |> Seq.iter(fun outX -> {fromY..toY} |> Seq.iter(fun outY -> setPixel color outX outY))
+      )
+    )
 
 module StatusBar =
   let drawStatusBar (statusBarGraphics:StatusBarGraphics) drawImage game =
@@ -256,5 +273,23 @@ module StatusBar =
     drawNumber 15. 1 (game.Level |> int)
     drawNumber 209 2 (game.Player.Ammunition |> int)
     
-    
+module Dissolve =
+  let render setPixel game =
+    match game.PixelDissolver with
+    | Some pixelDissolver ->
+      pixelDissolver.DrawnPixels
+      |> List.iter(fun (x,y) ->
+        let fromX = int (float x * pixelDissolver.PixelSize)
+        let toX = int (float fromX + pixelDissolver.PixelSize - 1.)
+        let fromY = int (float y * pixelDissolver.PixelSize)
+        let toY = int (float fromY + pixelDissolver.PixelSize - 1.)
+        {fromX..toX}
+        |> Seq.iter(fun zx ->
+          {fromY..toY}
+          |> Seq.iter(fun zy ->
+            setPixel 0xFF0000BCul zx zy
+          )
+        )
+      )
+    | None -> ()
     

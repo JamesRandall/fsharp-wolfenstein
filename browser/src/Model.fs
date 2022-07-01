@@ -450,6 +450,13 @@ type CompositeArea =
     ConnectedTo: int Set
   }
 
+type PixelDissolver =
+  { RemainingPixels: (int*int) list
+    DrawnPixels: (int*int) list
+    PixelSize: float
+  }
+  member this.TotalPixels = this.RemainingPixels.Length + this.DrawnPixels.Length
+
 type Game =
   { Level: int
     Map: Cell list list
@@ -463,6 +470,7 @@ type Game =
     TimeToNextWeaponFrame: float<ms> option
     Doors: DoorState list
     ViewportFilter: ViewportFilter
+    PixelDissolver: PixelDissolver option
   }
   member this.PlayerMapPosition = (int this.Camera.Position.vX),(int this.Camera.Position.vY)
   member this.IsPlayerRunning = (this.ControlState &&& ControlState.Forward) = ControlState.Forward

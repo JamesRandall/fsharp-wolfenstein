@@ -75,8 +75,8 @@ let loadTextureSet nameFormatter fallbackName textureWidth textureHeight checkSh
           0        
       try
         Image.Create(
-          textureWidth,
-          textureHeight,
+          //textureWidth,
+          //textureHeight,
           src = nameFormatter spriteFileIndex,
           onerror =
             (fun _ ->
@@ -96,9 +96,9 @@ let loadTextureSet nameFormatter fallbackName textureWidth textureHeight checkSh
       with
       | _ -> Image.Create(textureWidth, textureHeight, src = fallbackName)
     let canvas = window.document.createElement("canvas") :?> Browser.Types.HTMLCanvasElement
-    canvas.width <- image.width
-    canvas.height <- image.height
-    image.onload <- (fun _ ->      
+    image.onload <- (fun _ ->
+      canvas.width <- image.width
+      canvas.height <- image.height 
       let context = canvas.getContext_2d()
       context.drawImage(Fable.Core.U3.Case1 image, 0., 0., image.width, image.height)
       let buffer = context.getImageData(0., 0., image.width, image.height).data.buffer
