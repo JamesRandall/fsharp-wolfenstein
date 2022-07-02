@@ -6,7 +6,7 @@ open Model
 open PlatformModel
 open SixLabors.ImageSharp.PixelFormats
 
-let spriteColorIsTransparent color = color = 4287168665ul
+let spriteColorIsTransparent color = color = 4287168665ul || color = 0ul
 
 let loadTexture name =
   let bytes = Utils.loadAssetBytes name
@@ -36,7 +36,7 @@ let loadTextures skipSharewareIndicies nameFormatter indicies =
 let loadSprites _ = async {
   return
     {0..435}
-    |> loadTextures true (fun si -> $"Sprites.s{si}.png")
+    |> loadTextures true (fun si -> sprintf "Sprites.SPR%05d.png" si)
 }
 
 let scaleSprite (newWidth:float) (newHeight:float) (texture:Texture) =

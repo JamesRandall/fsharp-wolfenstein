@@ -50,6 +50,8 @@ let emptyGame =
       CurrentWeaponIndex = -1
       Ammunition = 99<bullets>
       Lives = 3<life>
+      CurrentFaceIndex = 0
+      TimeToFaceChangeMs = 0.<ms>
     }
     Camera = {
       Position = { vX = 12. ; vY = 6. }
@@ -64,6 +66,7 @@ let emptyGame =
     Doors = []
     ViewportFilter = ViewportFilter.None
     PixelDissolver = None
+    ResetLevel = (fun g _ -> g)
   }
 
 type RenderData =

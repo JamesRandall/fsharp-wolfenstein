@@ -118,7 +118,7 @@ let draw (context:CanvasRenderingContext2D) (bufferContext:CanvasRenderingContex
   | _ -> ()
   
   let endTime = performance.now()
-  Primitives.fillText context $"Render length: %.0f{endTime-startTime}ms" left (top / 2. + 8.)
+  //Primitives.fillText context $"Render length: %.0f{endTime-startTime}ms" left (top / 2. + 8.)
   
   context.restore ()
   
