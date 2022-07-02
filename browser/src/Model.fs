@@ -452,12 +452,21 @@ type CompositeArea =
     ConnectedTo: int Set
   }
 
+[<RequireQualifiedAccess>]
+type PixelDissolverState =
+  | Forwards
+  | Backwards
+  | Transitioning
+  | Stopped
 type PixelDissolver =
   { RemainingPixels: (int*int) list
     DrawnPixels: (int*int) list
     PixelSize: float
+    PauseTimeRemaining: float<ms>
+    DissolverState: PixelDissolverState
   }
   member this.TotalPixels = this.RemainingPixels.Length + this.DrawnPixels.Length
+  member this.IsComplete = this.DissolverState = PixelDissolverState.Backwards && this.DrawnPixels.Length = 0
 
 type Game =
   { Level: int
@@ -473,6 +482,7 @@ type Game =
     Doors: DoorState list
     ViewportFilter: ViewportFilter
     PixelDissolver: PixelDissolver option
+    ResetLevel: Game -> Player -> Game
   }
   member this.PlayerMapPosition = (int this.Camera.Position.vX),(int this.Camera.Position.vY)
   member this.IsPlayerRunning = (this.ControlState &&& ControlState.Forward) = ControlState.Forward

@@ -18,4 +18,9 @@ let create (width:int) (height:int) (zoom:float) =
     |> Seq.concat
     |> Seq.sortBy(fun _ -> random(width*height))
     |> Seq.toList
-  { RemainingPixels = coordinates ; DrawnPixels = [] ; PixelSize = zoom }
+  { RemainingPixels = coordinates
+    DrawnPixels = []
+    PixelSize = zoom
+    DissolverState = PixelDissolverState.Forwards
+    PauseTimeRemaining = 750.<ms>
+  }

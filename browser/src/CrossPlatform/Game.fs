@@ -33,6 +33,7 @@ let private initialGameState =
     Doors = []
     ViewportFilter = ViewportFilter.None
     PixelDissolver = None
+    ResetLevel = (fun g _ -> g)
   }
 
 let init statusBarScale initScene = async {
@@ -52,25 +53,26 @@ let init statusBarScale initScene = async {
     { game with ControlState = game.ControlState ^^^ controlState }
   
   let level = Map.loadLevelFromRawMap DifficultyLevel.IAmDeathIncarnate rawMap
-  let gameState =
-    { initialGameState with
-        Level = 1
+  let resetLevel game player =
+    { game with
         Map = level.Map
         Areas = level.Areas
         CompositeAreas = {0..level.NumberOfAreas-1} |> Seq.map(fun i -> { Area = i ; ConnectedTo = [i] |> Set.ofList }) |> Seq.toList 
         Camera = level.PlayerStartingPosition
         GameObjects = level.GameObjects
         Player = {
-          initialGameState.Player with
+          player with
             Weapons = [
               Map.getWeapon sprites WeaponType.Knife (Graphics.scaleSprite (float viewportHeight) (float viewportHeight))
               Map.getWeapon sprites WeaponType.Pistol (Graphics.scaleSprite (float viewportHeight) (float viewportHeight))
             ]
             CurrentWeaponIndex = 1
+            Health = 100<hp>
+            Ammunition = 9<bullets>
         }
         Doors = level.Doors
-        //PixelDissolver = Dissolver.create viewportWidth viewportHeight 2 |> Some
     }
+  let gameState = { (resetLevel initialGameState initialGameState.Player) with ResetLevel = resetLevel ; Level = 1 }
 
   return gameLoop,updateControlState,gameState
 }

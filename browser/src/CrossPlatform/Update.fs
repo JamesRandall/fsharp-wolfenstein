@@ -174,7 +174,7 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
     let currentWeapon = game.Player.Weapons.[game.Player.CurrentWeaponIndex]
     match game.IsFiring, game.TimeToNextWeaponFrame, isFireKeyPressed with
     | false, None, true ->
-      if (game.Player.CurrentWeapon.RequiresAmmunition && game.Player.Ammunition > 0<bullets>) || not (game.Player.CurrentWeapon.RequiresAmmunition) then
+      if (game.Player.CurrentWeapon.RequiresAmmunition && game.Player.Ammunition > 0<bullets>) || not game.Player.CurrentWeapon.RequiresAmmunition then
         let updatedWeapon = { currentWeapon with CurrentFrame = 1 }
         
         // begin firing
@@ -366,19 +366,56 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
       | _ -> game.ViewportFilter
     { game with ViewportFilter = newFilter }
     
-  let updatePixelDissolver (pixelDissolver:PixelDissolver) =
-    let lengthOfDissolve = 750.<ms>
-    let pixelsPerMs = float pixelDissolver.TotalPixels / lengthOfDissolve
-    Utils.log $"Remaining: {pixelDissolver.RemainingPixels.Length}, Drawn: {pixelDissolver.DrawnPixels.Length}"
-    Utils.log $"Frametime: {frameTime}, pixelsPerMs: {pixelsPerMs}"
-    // we use the original length and not the current set length here else we'll dissolve ever less pixels
-    let pixelsToDissolveThisFrame =
-      min (int (float pixelDissolver.TotalPixels / lengthOfDissolve * frameTime)) pixelDissolver.RemainingPixels.Length
-    Utils.log $"Total: {pixelDissolver.TotalPixels}, To dissolve: {pixelsToDissolveThisFrame}"
-    { pixelDissolver with
-        DrawnPixels = pixelDissolver.DrawnPixels @ (pixelDissolver.RemainingPixels |> List.take pixelsToDissolveThisFrame)
-        RemainingPixels = pixelDissolver.RemainingPixels |> List.skip pixelsToDissolveThisFrame
-    }
+  let removePixelDissolverIfDone game =
+    match game.PixelDissolver with
+    | Some { PixelDissolver.DissolverState = PixelDissolverState.Backwards ; PixelDissolver.DrawnPixels = [] } ->
+      { game with PixelDissolver = None}
+    | _ -> game
+    
+  let updatePixelDissolver game =
+    match game.PixelDissolver with
+    | Some pixelDissolver ->
+      let lengthOfDissolve = 1000.<ms>
+      let updatedDissolver,restartGameRequired =
+        match pixelDissolver.DissolverState with
+        | PixelDissolverState.Stopped -> pixelDissolver, false
+        | PixelDissolverState.Forwards ->
+          // we use the original length and not the current set length here else we'll dissolve ever less pixels
+          let pixelsToDissolveThisFrame =
+            min (int (float pixelDissolver.TotalPixels / lengthOfDissolve * frameTime)) pixelDissolver.RemainingPixels.Length
+          ({ pixelDissolver with
+              DrawnPixels = pixelDissolver.DrawnPixels @ (pixelDissolver.RemainingPixels |> List.take pixelsToDissolveThisFrame)
+              RemainingPixels = pixelDissolver.RemainingPixels |> List.skip pixelsToDissolveThisFrame
+          },false) |> (fun (pd,_) -> if pd.RemainingPixels.Length = 0 then { pd with DissolverState = PixelDissolverState.Transitioning },true else pd,false)
+        | PixelDissolverState.Transitioning ->
+          let newTimeRemaining = pixelDissolver.PauseTimeRemaining - frameTime
+          if newTimeRemaining <= 0.<ms> then
+            { pixelDissolver with DissolverState = PixelDissolverState.Backwards },false
+          else
+            { pixelDissolver with PauseTimeRemaining = newTimeRemaining },false
+        | PixelDissolverState.Backwards ->
+          // we use the original length and not the current set length here else we'll dissolve ever less pixels
+          let pixelsToDissolveThisFrame =
+            min (int (float pixelDissolver.TotalPixels / lengthOfDissolve * frameTime)) pixelDissolver.DrawnPixels.Length
+          { pixelDissolver with
+              DrawnPixels = pixelDissolver.DrawnPixels |> List.skip pixelsToDissolveThisFrame
+              RemainingPixels = pixelDissolver.RemainingPixels @ (pixelDissolver.DrawnPixels |> List.take pixelsToDissolveThisFrame)
+          },false
+      if restartGameRequired then
+        if game.Player.Lives = 1<life> then
+          { game with
+              PixelDissolver = Some {updatedDissolver with DissolverState = PixelDissolverState.Stopped }
+              Player = { game.Player with Lives = 0<life> }
+          } // TODO: We need to send an "end the game state" somewhere
+        else
+          let resetLevel = game.ResetLevel game game.Player
+          { resetLevel with
+              PixelDissolver = Some updatedDissolver
+              Player = { resetLevel.Player with Lives = game.Player.Lives - 1<life> }
+          }
+      else
+        { game with PixelDissolver = Some updatedDissolver }
+    | None -> game
     
   let updatePlayerFace game =
     let newTimeRemaining = game.Player.TimeToFaceChangeMs - frameTime
@@ -399,17 +436,16 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
     if game.Player.Health < 0<hp> then
       { game with
           PixelDissolver = createPixelDissolver () |> Some
-          //ViewportFilter = ViewportFilter.None
+          ViewportFilter = ViewportFilter.None
       }
-      |> updateViewportFilter
     else
       game
-      |> updateViewportFilter
-
+      
   match game.PixelDissolver with
-  | Some pixelDissolver ->
-    //game
-    { game with PixelDissolver = Some (updatePixelDissolver pixelDissolver) }
+  | Some _ ->
+    game
+    |> updatePixelDissolver
+    |> removePixelDissolverIfDone
   | None ->  
     game
     |> (fun g -> match g with | IsActive ControlState.Forward -> move movementSpeed g | _ -> g)
