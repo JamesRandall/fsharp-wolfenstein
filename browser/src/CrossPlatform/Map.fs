@@ -407,7 +407,7 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
             elif value = 0x30us then
               basicGameObject |> withHitPoints 25<hp> // medpack
             elif value = 0x31us then
-              basicGameObject |> withBullets 5<bullets> // ammo
+              basicGameObject |> withBullets 8<bullets> // ammo
             elif value = 0x34us then
               basicGameObject |> withScore 100<points> // cross
             elif value = 0x35us then
@@ -526,6 +526,21 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
       |> List.filter(fun go -> match go with GameObject.Enemy _ -> true | _ -> false) |> List.take 1*)
     Doors = updatedDoors
   }
+  
+let createAmmo playerPosition (mapX,mapY) =
+  let position = { vX = float mapX + 0.5 ; vY = float mapY + 0.5 }
+  { Position = position
+    SpriteIndex = 0x31 - 21
+    PlayerRelativePosition =  position - playerPosition
+    UnsquaredDistanceFromPlayer = position.UnsquaredDistanceFrom playerPosition
+    CollidesWithBullets = false
+    Pickupable = true
+    HitpointsRestored = 0<hp>
+    Score = 0<points>
+    AmmoRestored = 4<bullets>
+    LivesRestored = 0<life>
+  }
+  |> GameObject.Static
   
 let getWeapon (sprites:Texture array) weaponType scaleSprite =
   //let toSpriteSet sequence = sequence |> Seq.map (fun i -> Graphics.canvasFromTexture sprites.[i]) |> Seq.toList

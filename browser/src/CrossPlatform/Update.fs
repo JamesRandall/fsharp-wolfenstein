@@ -226,7 +226,7 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
   let updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame indexOfGameObject gameObject =
     match gameObject with
     | GameObject.Enemy e ->
-      let updatedEnemy =
+      let updatedEnemy,didDie =
         if e.IsAlive then
           match renderingResult.SpriteInFrontOfPlayerIndexOption,beganFiringSequenceOnFrame with
           | Some firingHitGameObjectIndex, true ->
@@ -238,14 +238,14 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
                   CurrentAnimationFrame = 0
                   TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState EnemyStateType.Die
                   BasicGameObject = { e.BasicGameObject with CollidesWithBullets = false }
-              }
+              },true
             else
-              e
-          | _ -> e
+              e,false
+          | _ -> e,false
         else
-          e
-      GameObject.Enemy updatedEnemy
-    | GameObject.Static t -> GameObject.Static t
+          e,false
+      GameObject.Enemy updatedEnemy,didDie
+    | GameObject.Static t -> GameObject.Static t,false
     
   let updateEnemyAnimation frameTime gameObject =
     match gameObject with
@@ -327,12 +327,29 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
     let _,updatedGame,updatedGameObjects =
       game.GameObjects
       |> List.fold(fun (i,innerGame,gameObjects) go ->
-        let updatedGameObject,updatedGame =
+        let updatedGameObject,didDie =
           go
           |> resetNeedToFire
           |> updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame i
+        let updatedGameObject,updatedGame =
+          updatedGameObject
           |> updateEnemyAnimation frameTime 
           |> applyAi frameTime innerGame // this did read "game" but I think that's wrong, though I've not seen a bug
+        let updatedGame =
+          if didDie then
+            { updatedGame with
+                Player =
+                  { updatedGame.Player with
+                      Score = updatedGame.Player.Score + go.BasicGameObject.Score
+                  } 
+            }
+          else
+            updatedGame
+        let gameObjects =
+          if didDie then
+            (Map.createAmmo updatedGame.Camera.Position go.BasicGameObject.MapPosition) :: gameObjects
+          else
+            gameObjects
         i+1,updatedGame,(updatedGameObject |> calculateRelativeGameObjectPosition updatedGame) :: gameObjects
       ) (0,game,[])           
     { updatedGame with GameObjects = updatedGameObjects } |> openDoorsInRangeOfEnemies
