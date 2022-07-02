@@ -17,6 +17,8 @@ let private initialGameState =
       Weapons = [  ]
       CurrentWeaponIndex = -1
       Ammunition = 9<bullets>
+      CurrentFaceIndex = 0
+      TimeToFaceChangeMs = 1500.<ms>
     }
     Camera = {
       Position = { vX = 12. ; vY = 6. }
@@ -44,7 +46,7 @@ let init statusBarScale initScene = async {
   let gameLoop (game:Game) (frameTime:float<ms>) =
     let updatedGameState =
       drawScene statusBarTextures graphics sprites game
-      |> updateFrame game frameTime
+      |> updateFrame game frameTime (fun _ -> Dissolver.create viewportWidth viewportHeight 2)
     updatedGameState
   let updateControlState game controlState =
     { game with ControlState = game.ControlState ^^^ controlState }

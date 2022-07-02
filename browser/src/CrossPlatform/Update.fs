@@ -10,8 +10,9 @@ let private actionDistanceTolerance = 0.75
 let private actionDoorDistanceTolerance = actionDistanceTolerance + 0.5 
 let private doorOpeningTime = 1000.<ms>
 let private doorOpenTime = 5000.<ms>
+let private random = System.Random()
 
-let updateFrame game frameTime (renderingResult:WallRenderingResult) =
+let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderingResult) =
   let (|IsActive|_|) controlState game = if game.ControlState &&& controlState > ControlState.None then Some () else None 
   let frameMultiplier = float frameTime / 1000. 
   let movementSpeed = 6.0 * frameMultiplier // squares per second
@@ -377,7 +378,33 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
     { pixelDissolver with
         DrawnPixels = pixelDissolver.DrawnPixels @ (pixelDissolver.RemainingPixels |> List.take pixelsToDissolveThisFrame)
         RemainingPixels = pixelDissolver.RemainingPixels |> List.skip pixelsToDissolveThisFrame
-    }    
+    }
+    
+  let updatePlayerFace game =
+    let newTimeRemaining = game.Player.TimeToFaceChangeMs - frameTime
+    let player =
+      if newTimeRemaining < 0.<ms> then
+        let randomTime (maxDelta:float<ms>) =
+          random.NextDouble() * maxDelta + 750.<ms>
+        { game.Player with
+            TimeToFaceChangeMs = (if random.Next(100) < 75 then 1000.<ms> else 2250.<ms>) |> randomTime
+            CurrentFaceIndex = random.Next(3)
+        }
+      else
+        { game.Player with TimeToFaceChangeMs = newTimeRemaining }
+    { game with Player = player }
+    
+    
+  let checkIfPlayerIsDead game =
+    if game.Player.Health < 0<hp> then
+      { game with
+          PixelDissolver = createPixelDissolver () |> Some
+          //ViewportFilter = ViewportFilter.None
+      }
+      |> updateViewportFilter
+    else
+      game
+      |> updateViewportFilter
 
   match game.PixelDissolver with
   | Some pixelDissolver ->
@@ -398,3 +425,5 @@ let updateFrame game frameTime (renderingResult:WallRenderingResult) =
     |> updateTransitioningDoors
     |> updateViewportFilter
     |> sortGameObjectsByDescendingDistance
+    |> updatePlayerFace
+    |> checkIfPlayerIsDead

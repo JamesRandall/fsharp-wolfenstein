@@ -375,6 +375,8 @@ type Player =
     CurrentWeaponIndex: int
     Ammunition: int<bullets>
     Weapons: PlayerWeapon list
+    CurrentFaceIndex: int
+    TimeToFaceChangeMs: float<ms>
   }
   member this.CurrentWeapon = this.Weapons.[this.CurrentWeaponIndex]
 

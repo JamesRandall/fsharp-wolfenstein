@@ -248,7 +248,7 @@ module StatusBar =
     let healthFace =
       if playerHp > 0<hp> then        
         let index = max 0 (statusBarGraphics.HealthFaces.Length - 1 - (playerHp / 16 |> int))
-        statusBarGraphics.HealthFaces.[index].[0]
+        statusBarGraphics.HealthFaces.[index].[game.Player.CurrentFaceIndex]
       else
         statusBarGraphics.Dead
     drawImage healthFace 128.0 1.0
