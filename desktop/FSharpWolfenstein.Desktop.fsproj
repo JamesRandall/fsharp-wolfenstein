@@ -356,6 +356,10 @@
         <EmbeddedResource Include="Assets\StatusBar\Font\7.png" />
         <EmbeddedResource Include="Assets\StatusBar\Font\8.png" />
         <EmbeddedResource Include="Assets\StatusBar\Font\9.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Weapons\ChainGun.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Weapons\Knife.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Weapons\MachineGun.png" />
+        <EmbeddedResource Include="Assets\StatusBar\Weapons\Pistol.png" />
     </ItemGroup>
     <ItemGroup>
       <PackageReference Include="Silk.NET.Input" Version="2.15.0" />

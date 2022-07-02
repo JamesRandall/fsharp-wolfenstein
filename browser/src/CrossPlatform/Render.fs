@@ -191,9 +191,6 @@ module Objects =
             |> Seq.fold (fun gameObjectHitIndex stripe ->
               let textureX = int(256. * (float stripe - (float (-spriteWidth) / 2. + spriteScreenX)) * 64. / float spriteWidth) / 256
               if transformY > 0. && stripe > 0 && stripe < int width && transformY < wallRenderResult.ZIndexes.[stripe] then
-                match sprite with
-                | GameObject.Static _ -> if sprite.BasicGameObject.Score > 0<points> then Fable.Core.JS.debugger()
-                | _ -> ()
                 // TODO: we should restore this as its a decent optimisation for some sprites
                 //if textureX >= int spriteOffsets.FirstColumn && textureX <= int spriteOffsets.LastColumn then
                 {drawStartY..(drawEndY-1)}

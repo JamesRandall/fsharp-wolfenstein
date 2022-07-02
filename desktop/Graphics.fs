@@ -72,6 +72,10 @@ let loadStatusBar scale = async {
   let statusBarNumbers =
     loadTextures false (fun i -> sprintf "StatusBar.Font.%d.png" i) {0..9}
   let statusBarSpace = loadTexture "StatusBar.Font._.png"
+  let knife = loadTexture "StatusBar.Weapons.Knife.png"
+  let pistol = loadTexture "StatusBar.Weapons.Pistol.png"
+  let machineGun = loadTexture "StatusBar.Weapons.MachineGun.png"
+  let chainGun = loadTexture "StatusBar.Weapons.ChainGun.png"
   return
     { Background = background |> scaleSprite (float background.Width*scale) (float background.Height*scale)
       HealthFaces = [|
@@ -89,5 +93,11 @@ let loadStatusBar scale = async {
       Font = [|
         statusBarSpace |> scaleSprite (float statusBarSpace.Width*scale) (float statusBarSpace.Height*scale)
       |] |> Array.append (statusBarNumbers |> Array.map (fun n -> n |> scaleSprite (float n.Width*scale) (float n.Height*scale)))
+      Weapons = [|
+        knife |> scaleSprite (float knife.Width*scale) (float knife.Height*scale)
+        pistol |> scaleSprite (float pistol.Width*scale) (float pistol.Height*scale)
+        machineGun |> scaleSprite (float machineGun.Width*scale) (float machineGun.Height*scale)
+        chainGun |> scaleSprite (float chainGun.Width*scale) (float chainGun.Height*scale)
+      |]
     }
 }
