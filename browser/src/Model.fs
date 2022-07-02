@@ -1,6 +1,5 @@
 module App.Model
 
-open System.Collections.Generic
 open App.PlatformModel
 
 [<Measure>] type hp
@@ -215,7 +214,7 @@ type DoorState =
     Status: DoorStatus
     Offset: float
     TimeRemainingInAnimationState: float<ms>
-    MapPosition: (int*int)
+    MapPosition: int*int
     AreaOne: int
     AreaTwo: int
   }
@@ -267,6 +266,11 @@ type BasicGameObject =
     UnsquaredDistanceFromPlayer: float
     SpriteIndex: int
     CollidesWithBullets: bool
+    Pickupable: bool
+    HitpointsRestored: int<hp>
+    AmmoRestored: int<bullets>
+    LivesRestored: int<life>
+    Score: int<points>
   }
   member this.MapPosition = (int this.Position.vX),(int this.Position.vY)
 
@@ -347,13 +351,15 @@ type PlayerWeapon =
   
 [<RequireQualifiedAccess>]
 type GameObject =
-  | Treasure of BasicGameObject
+  | Static of BasicGameObject
   | Enemy of Enemy
   member x.BasicGameObject =
-    match x with | GameObject.Treasure t -> t | GameObject.Enemy e -> e.BasicGameObject
+    match x with
+    | GameObject.Static t -> t
+    | GameObject.Enemy e -> e.BasicGameObject
   member x.UpdateBasicGameObject go =
     match x with
-    | GameObject.Treasure _ -> GameObject.Treasure go
+    | GameObject.Static _ -> GameObject.Static go
     | GameObject.Enemy e -> { e with BasicGameObject = go } |> GameObject.Enemy
   
 type ControlState =
@@ -426,21 +432,23 @@ type OverlayAnimation =
     FrameLength: float<ms>
     TimeRemainingUntilNextFrame: float<ms>
   }
-  static member Blood maxOpacity =
+  static member WithColor red green blue maxOpacity =
     let maxOpacity = max maxOpacity 0.2
     let totalAnimationTime = 75.<ms>
     let totalFrames = 10.
     let opacityDelta = maxOpacity / (totalFrames / 2.) // we go in and out     
     let frameLength = totalAnimationTime / totalFrames
-    { Red = 0xFFuy//0x8Cuy
-      Green = 0uy
-      Blue = 0uy
+    { Red = red
+      Green = green
+      Blue = blue
       Opacity = opacityDelta
       OpacityDelta = opacityDelta
       MaxOpacity = maxOpacity
       FrameLength = frameLength
       TimeRemainingUntilNextFrame = frameLength
     }
+  static member Blood maxOpacity = OverlayAnimation.WithColor 0xFFuy 0uy 0uy maxOpacity    
+  static member Pickup = OverlayAnimation.WithColor 0xFFuy 0xD7uy 0uy 0.4
 
 [<RequireQualifiedAccess>]
 type ViewportFilter =

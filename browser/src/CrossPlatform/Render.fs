@@ -113,7 +113,7 @@ module Objects =
   let draw width height getPixel setPixel isTransparent getSpriteOffsets game (sprites:Texture array) (wallRenderResult:WallRenderingResult) =
     let orientedSpriteIndex gameObject =
       match gameObject with
-      | GameObject.Treasure t -> t.SpriteIndex
+      | GameObject.Static t -> t.SpriteIndex
       | GameObject.Enemy e ->
         if e.IsAlive then
           e.DirectionVector
@@ -192,20 +192,23 @@ module Objects =
             |> Seq.fold (fun gameObjectHitIndex stripe ->
               let textureX = int(256. * (float stripe - (float (-spriteWidth) / 2. + spriteScreenX)) * 64. / float spriteWidth) / 256
               if transformY > 0. && stripe > 0 && stripe < int width && transformY < wallRenderResult.ZIndexes.[stripe] then
-                if textureX >= int spriteOffsets.FirstColumn && textureX <= int spriteOffsets.LastColumn then
-                  {drawStartY..(drawEndY-1)}
-                  |> Seq.iter (fun y ->
-                    let texY = int ((float y - (height)/2. + lineHeight/2.) * step)
-                    let color = getPixel spriteTexture textureX texY
-                    if not (color |> isTransparent) then
-                      setPixel color stripe y
-                  )
-                  if sprite.BasicGameObject.CollidesWithBullets && stripe > hitDetectionLeft && stripe < hitDetectionRight  then
-                    gameObjectIndex |> Some
-                  else
-                    gameObjectHitIndex
+                match sprite with
+                | GameObject.Static _ -> if sprite.BasicGameObject.Score > 0<points> then Fable.Core.JS.debugger()
+                | _ -> ()
+                //if textureX >= int spriteOffsets.FirstColumn && textureX <= int spriteOffsets.LastColumn then
+                {drawStartY..(drawEndY-1)}
+                |> Seq.iter (fun y ->
+                  let texY = int ((float y - (height)/2. + lineHeight/2.) * step)
+                  let color = getPixel spriteTexture textureX texY
+                  if not (color |> isTransparent) then
+                    setPixel color stripe y
+                )
+                if sprite.BasicGameObject.CollidesWithBullets && stripe > hitDetectionLeft && stripe < hitDetectionRight  then
+                  gameObjectIndex |> Some
                 else
                   gameObjectHitIndex
+                //else
+                //  gameObjectHitIndex
               else
                 gameObjectHitIndex
             ) outerGameObjectHitIndex,

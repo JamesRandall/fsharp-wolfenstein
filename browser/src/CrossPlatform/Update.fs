@@ -245,7 +245,7 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
         else
           e
       GameObject.Enemy updatedEnemy
-    | GameObject.Treasure t -> GameObject.Treasure t
+    | GameObject.Static t -> GameObject.Static t
     
   let updateEnemyAnimation frameTime gameObject =
     match gameObject with
@@ -340,7 +340,17 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
   let sortGameObjectsByDescendingDistance (game:Game) =
     // we need them in distance order for rendering and hit detection
     { game with
-        GameObjects = game.GameObjects |> List.sortByDescending(fun s -> s.BasicGameObject.UnsquaredDistanceFromPlayer)
+        GameObjects =
+          game.GameObjects
+          |> List.sortByDescending(fun s ->
+            // we sort by the object type to stop flickering when two objects are at the same distance
+            let objectTypeDepth =
+              match s with
+              | GameObject.Enemy _ -> 1
+              | GameObject.Static go ->
+                if go.Pickupable then 0 else 2
+            s.BasicGameObject.UnsquaredDistanceFromPlayer,objectTypeDepth
+          )
     }
     
   let updateViewportFilter game =
@@ -431,6 +441,45 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
         { game.Player with TimeToFaceChangeMs = newTimeRemaining }
     { game with Player = player }
     
+  let pickupObject (game:Game) =
+    let pickupRadius = 0.5
+    let playerMapPosition = game.PlayerMapPosition
+    let gameObjectsAtLocation =
+      game.GameObjects
+      |> List.filter(fun go ->
+        go.BasicGameObject.MapPosition = playerMapPosition && go.BasicGameObject.Pickupable &&
+        (go.BasicGameObject.HitpointsRestored = 0<hp> || game.Player.Health < 100<hp>)
+      )
+    if gameObjectsAtLocation.Length > 0 then
+      let playerMapX, playerMapY = game.PlayerMapPosition
+      let center = { vX = float playerMapX + 0.5 ; vY = float playerMapY + 0.5 }
+      let distanceFromCenter = (game.Camera.Position - center).Magnitude
+      if distanceFromCenter < pickupRadius then
+        let updatedPlayer =
+          gameObjectsAtLocation
+          |> List.fold(fun player go ->
+            let bgo = go.BasicGameObject
+            { player with
+                Ammunition = min 99<bullets> (player.Ammunition + bgo.AmmoRestored)
+                Health = min 100<hp> (player.Health + bgo.HitpointsRestored)
+                Lives = min 9<life> (player.Lives + bgo.LivesRestored)
+                Score = player.Score + bgo.Score
+            }
+          ) game.Player
+        let viewportFilter =
+          match game.ViewportFilter with
+          | ViewportFilter.None -> OverlayAnimation.Pickup |> ViewportFilter.Overlay
+          | _ -> game.ViewportFilter
+        { game with
+            GameObjects = game.GameObjects |> List.filter (fun go -> gameObjectsAtLocation |> List.contains go |> not )
+            ViewportFilter = viewportFilter
+            Player = updatedPlayer
+        }
+      else
+        game
+    else
+      game
+    
     
   let checkIfPlayerIsDead game =
     if game.Player.Health < 0<hp> then
@@ -458,6 +507,7 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
     |> handleFiring
     |> updateEnemies
     |> handleAction
+    |> pickupObject
     |> updateTransitioningDoors
     |> updateViewportFilter
     |> sortGameObjectsByDescendingDistance

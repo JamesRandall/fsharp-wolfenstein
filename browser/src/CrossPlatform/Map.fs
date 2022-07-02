@@ -335,7 +335,7 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
     if value-baseValue < 4us then EnemyStateType.Standing else EnemyStateType.Path PathState.Empty
   
   let gameObjects =
-    let createEnemy spriteIndex spriteBlocks framesPerBlock deathSprites attackingSprites enemyType x y directionIntOption startingState =
+    let createEnemy spriteIndex spriteBlocks framesPerBlock deathSprites attackingSprites score enemyType x y directionIntOption startingState =
       let position = { vX = float raw.MapSize - float x - 0.5 ; vY = float y + 0.5 }
       { EnemyType = enemyType
         BasicGameObject = {
@@ -344,6 +344,11 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
           PlayerRelativePosition =  position - playerStartingPosition.Position
           UnsquaredDistanceFromPlayer = position.UnsquaredDistanceFrom playerStartingPosition.Position
           CollidesWithBullets = true
+          Pickupable = false
+          HitpointsRestored = 0<hp>
+          Score = score
+          AmmoRestored = 0<bullets>
+          LivesRestored = 0<life>
         }
         Direction = directionIntOption |> startingMapDirectionFromInt
         //DirectionVector = directionIntOption |> Option.map startingDirectionVectorFromInt
@@ -358,31 +363,65 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
         FireAtPlayerRequired = false
         HitPoints = startingHitPoints difficulty enemyType
       }
-    let guardEnemy = createEnemy 50 4 8 [90 ; 91 ; 92 ; 93 ; 95] [96 ; 97 ; 98] EnemyType.Guard
-    let dogEnemy = createEnemy 99 3 8 [131 ; 132 ; 133 ; 134] [135 ; 136 ; 137] EnemyType.Dog
-    let officerEnemy = createEnemy 138 4 8 [179 ; 180 ; 181 ; 183] [184 ; 185 ; 186] EnemyType.SS
-    let zombieEnemy = createEnemy 187 4 8 [228 ; 229 ; 230 ; 232 ; 233] [234 ; 235 ; 236 ; 237] EnemyType.Zombie
-    let leonEnemy = createEnemy 238 4 8 [279 ; 280 ; 281 ; 283 ; 284] [285 ; 286 ; 287] EnemyType.Officer
-    let hansEnemy = createEnemy 296 1 4 [304 ; 305 ; 306 ; 303] [300; 301 ; 302] EnemyType.Hans
-    let schabbsEnemy = createEnemy 307 1 4 [313 ; 314 ; 315 ; 316] [311 ; 312]  EnemyType.Schabbs
-    let fakeAdolfEnemy = createEnemy 321 1 4 [328 ; 329 ; 330 ; 331 ; 332 ; 333] [] EnemyType.FakeAdolf
+    let guardEnemy = createEnemy 50 4 8 [90 ; 91 ; 92 ; 93 ; 95] [96 ; 97 ; 98] 100<points> EnemyType.Guard
+    let dogEnemy = createEnemy 99 3 8 [131 ; 132 ; 133 ; 134] [135 ; 136 ; 137] 200<points> EnemyType.Dog
+    let officerEnemy = createEnemy 138 4 8 [179 ; 180 ; 181 ; 183] [184 ; 185 ; 186] 500<points> EnemyType.SS
+    let zombieEnemy = createEnemy 187 4 8 [228 ; 229 ; 230 ; 232 ; 233] [234 ; 235 ; 236 ; 237] 700<points> EnemyType.Zombie
+    let leonEnemy = createEnemy 238 4 8 [279 ; 280 ; 281 ; 283 ; 284] [285 ; 286 ; 287] 400<points> EnemyType.Officer
+    let hansEnemy = createEnemy 296 1 4 [304 ; 305 ; 306 ; 303] [300; 301 ; 302] 2000<points> EnemyType.Hans
+    let schabbsEnemy = createEnemy 307 1 4 [313 ; 314 ; 315 ; 316] [311 ; 312] 2000<points> EnemyType.Schabbs
+    let fakeAdolfEnemy = createEnemy 321 1 4 [328 ; 329 ; 330 ; 331 ; 332 ; 333] [] 2000<points> EnemyType.FakeAdolf
     // Note Hitler has two states - robot adolf and plain adolf, this only deals with plain hitler
-    let adolfEnemy = createEnemy 345 1 4 [353 ; 354 ; 355 ; 356 ; 357 ; 358 ; 359 ; 352] [349 ; 350 ; 351] EnemyType.Adolf 
-    let ottoEnemy = createEnemy 360 1 4 [366 ; 367 ; 368 ; 369] [364 ; 365] EnemyType.Otto
-    let gretelEnemy = createEnemy 385 1 4 [393 ; 394 ; 395 ; 392] [389 ; 390 ; 391] EnemyType.Gretel
-    let fettgesichtEnemy = createEnemy 396 1 4 [404 ; 405 ; 406 ; 407] [400 ; 401 ; 402 ; 403] EnemyType.Fettgesicht
+    let adolfEnemy = createEnemy 345 1 4 [353 ; 354 ; 355 ; 356 ; 357 ; 358 ; 359 ; 352] [349 ; 350 ; 351] 5000<points> EnemyType.Adolf 
+    let ottoEnemy = createEnemy 360 1 4 [366 ; 367 ; 368 ; 369] [364 ; 365] 5000<points> EnemyType.Otto
+    let gretelEnemy = createEnemy 385 1 4 [393 ; 394 ; 395 ; 392] [389 ; 390 ; 391] 5000<points> EnemyType.Gretel
+    let fettgesichtEnemy = createEnemy 396 1 4 [404 ; 405 ; 406 ; 407] [400 ; 401 ; 402 ; 403] 5000<points> EnemyType.Fettgesicht
+    
+    let withHitPoints pts go = { go with HitpointsRestored = pts ; Pickupable = true }
+    let withScore pts go = { go with Score = pts ; Pickupable = true }
+    let withBullets bullets go = { go with AmmoRestored = bullets ; Pickupable = true}
+    let withExtraLife go = { go with LivesRestored = 1<life> ; Pickupable = true }
     
     raw.Plane1
     |> traverseMap (fun colIndex rowIndex value ->
         // this requires some additional nuance as their are different kinds of collectible
         if value >= 23us && value <= 70us then
-          let position = { vX = float raw.MapSize - float colIndex - 0.5 ; vY = float rowIndex + 0.5 }
-          { Position = position
-            SpriteIndex = (int value) - 21
-            PlayerRelativePosition =  position - playerStartingPosition.Position
-            UnsquaredDistanceFromPlayer = position.UnsquaredDistanceFrom playerStartingPosition.Position
-            CollidesWithBullets = false
-          } |> GameObject.Treasure |> Some
+          (
+            let position = { vX = float raw.MapSize - float colIndex - 0.5 ; vY = float rowIndex + 0.5 }
+            let basicGameObject =
+              { Position = position
+                SpriteIndex = (int value) - 21
+                PlayerRelativePosition =  position - playerStartingPosition.Position
+                UnsquaredDistanceFromPlayer = position.UnsquaredDistanceFrom playerStartingPosition.Position
+                CollidesWithBullets = false
+                Pickupable = false
+                HitpointsRestored = 0<hp>
+                Score = 0<points>
+                AmmoRestored = 0<bullets>
+                LivesRestored = 0<life>
+              }
+            if value = 0x1dus then
+              basicGameObject |> withHitPoints 4<hp>  // dog food
+            elif value = 0x2fus then
+              basicGameObject |> withHitPoints 10<hp>  // food
+            elif value = 0x30us then
+              basicGameObject |> withHitPoints 25<hp> // medpack
+            elif value = 0x31us then
+              basicGameObject |> withBullets 5<bullets> // ammo
+            elif value = 0x34us then
+              basicGameObject |> withScore 100<points> // cross
+            elif value = 0x35us then
+              basicGameObject |> withScore 500<points> // chalace
+            elif value = 0x36us then
+              basicGameObject |> withScore 1000<points> // jewels
+            elif value = 0x37us then
+              basicGameObject |> withScore 5000<points> // crown
+            elif value = 0x38us then
+              basicGameObject |> withExtraLife // extra life
+            else
+              basicGameObject
+          )
+          |> GameObject.Static |> Some
         elif value >= 108us then
           // useful for debugging if you want a single enemy
           // find their location in maped42 and enter the co-ordinates below 
