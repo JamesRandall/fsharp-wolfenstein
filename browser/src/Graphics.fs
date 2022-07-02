@@ -123,6 +123,10 @@ let loadStatusBar _ = async {
   let! statusBarNumbers =
     loadTextureSet (fun i -> sprintf "assets/statusBar/font/%d.png" i) $"assets/sprites/SPR00000.png" 8. 16. false {0..9}
   let! statusBarSpace = loadTexture "assets/statusBar/font/_.png" 8. 16.
+  let! knife = loadTexture "assets/statusBar/weapons/knife.png" 48. 24.
+  let! pistol = loadTexture "assets/statusBar/weapons/pistol.png" 48. 24.
+  let! machineGun = loadTexture "assets/statusBar/weapons/machineGun.png" 48. 24.
+  let! chainGun = loadTexture "assets/statusBar/weapons/chainGun.png" 48. 24.
   return
     { Background = background
       HealthFaces = [|
@@ -138,6 +142,7 @@ let loadStatusBar _ = async {
       GrinFace = textureSet.[22]
       GreyFace = textureSet.[23]
       Font = [| statusBarSpace |] |> Array.append statusBarNumbers
+      Weapons = [| knife ; pistol ; machineGun ; chainGun |]
     }
 }
 

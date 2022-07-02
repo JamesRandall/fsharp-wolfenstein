@@ -345,6 +345,7 @@ type PlayerWeapon =
     Damage: int
     AutoRepeat: bool
     RequiresAmmunition: bool
+    StatusBarImageIndex: int
   }
   member x.AnimationFrames = x.Sprites.Length
   member x.CurrentSprite = x.Sprites.[x.CurrentFrame]
@@ -502,6 +503,7 @@ type StatusBarGraphics =
     GrinFace: Texture
     GreyFace: Texture
     Font: Texture array
+    Weapons: Texture array
   }
   
 let textureWidth = 64.

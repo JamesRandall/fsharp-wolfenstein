@@ -342,7 +342,7 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
           |> resetNeedToFire 
           |> updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame i
           |> updateEnemyAnimation frameTime        
-          |> applyAi frameTime // this did read "game" but I think that's wrong, though I've not seen a bug
+          |> applyAi frameTime
         i+1,
         updatedGame,
         (updatedGameObject |> calculateRelativeGameObjectPosition updatedGame) :: gameObjects @ newObjects

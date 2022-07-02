@@ -181,7 +181,6 @@ module Objects =
         let drawStartX = max 0 (-spriteWidth / 2 + int spriteScreenX)
         let drawEndX = min (int width-1) (spriteWidth / 2 + int spriteScreenX)
         let spriteIndex = orientedSpriteIndex sprite
-        let spriteOffsets = getSpriteOffsets spriteIndex
         let spriteTexture = sprites.[spriteIndex]
         let lineHeight = height / transformY
         let step = 1.0 * textureHeight / lineHeight
@@ -195,6 +194,7 @@ module Objects =
                 match sprite with
                 | GameObject.Static _ -> if sprite.BasicGameObject.Score > 0<points> then Fable.Core.JS.debugger()
                 | _ -> ()
+                // TODO: we should restore this as its a decent optimisation for some sprites
                 //if textureX >= int spriteOffsets.FirstColumn && textureX <= int spriteOffsets.LastColumn then
                 {drawStartY..(drawEndY-1)}
                 |> Seq.iter (fun y ->
@@ -255,6 +255,7 @@ module StatusBar =
       else
         statusBarGraphics.Dead
     drawImage healthFace 128.0 1.0
+    drawImage statusBarGraphics.Weapons.[game.Player.CurrentWeapon.StatusBarImageIndex] 247.0 3.0
     
     let drawNumber startX maximumLength (value:int) =
       let textY = 13.
