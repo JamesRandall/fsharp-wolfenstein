@@ -13,64 +13,64 @@ let private startingHitPoints difficultyLevel enemyType =
   match difficultyLevel with
   | DifficultyLevel.CanIPlayDaddy ->
     match enemyType with 
-    | Guard -> 25
-    | Officer -> 50
-    | SS -> 100
-    | Dog -> 1
-    | Zombie -> 45
-    | FakeAdolf -> 200
-    | Adolf -> 800
-    | Fettgesicht -> 850
-    | Schabbs -> 850
-    | Gretel -> 850
-    | Hans -> 850
-    | Otto -> 850
-    | Ghost -> 25
+    | Guard -> 25<hp>
+    | Officer -> 50<hp>
+    | SS -> 100<hp>
+    | Dog -> 1<hp>
+    | Zombie -> 45<hp>
+    | FakeAdolf -> 200<hp>
+    | Adolf -> 800<hp>
+    | Fettgesicht -> 850<hp>
+    | Schabbs -> 850<hp>
+    | Gretel -> 850<hp>
+    | Hans -> 850<hp>
+    | Otto -> 850<hp>
+    | Ghost -> 25<hp>
   | DifficultyLevel.DontHurtMe ->
     match enemyType with 
-    | Guard -> 25
-    | Officer -> 50
-    | SS -> 100
-    | Dog -> 1
-    | Zombie -> 55
-    | FakeAdolf -> 300
-    | Adolf -> 950
-    | Fettgesicht -> 950
-    | Schabbs -> 950
-    | Gretel -> 850
-    | Hans -> 950
-    | Otto -> 950
-    | Ghost -> 25
+    | Guard -> 25<hp>
+    | Officer -> 50<hp>
+    | SS -> 100<hp>
+    | Dog -> 1<hp>
+    | Zombie -> 55<hp>
+    | FakeAdolf -> 300<hp>
+    | Adolf -> 950<hp>
+    | Fettgesicht -> 950<hp>
+    | Schabbs -> 950<hp>
+    | Gretel -> 850<hp>
+    | Hans -> 950<hp>
+    | Otto -> 950<hp>
+    | Ghost -> 25<hp>
   | DifficultyLevel.BringEmOn ->
     match enemyType with 
-    | Guard -> 25
-    | Officer -> 50
-    | SS -> 100
-    | Dog -> 1
-    | Zombie -> 55
-    | FakeAdolf -> 400
-    | Adolf -> 1050
-    | Fettgesicht -> 1050
-    | Schabbs -> 1550
-    | Gretel -> 1050
-    | Hans -> 1050
-    | Otto -> 1050
-    | Ghost -> 25
+    | Guard -> 25<hp>
+    | Officer -> 50<hp>
+    | SS -> 100<hp>
+    | Dog -> 1<hp>
+    | Zombie -> 55<hp>
+    | FakeAdolf -> 400<hp>
+    | Adolf -> 1050<hp>
+    | Fettgesicht -> 1050<hp>
+    | Schabbs -> 1550<hp>
+    | Gretel -> 1050<hp>
+    | Hans -> 1050<hp>
+    | Otto -> 1050<hp>
+    | Ghost -> 25<hp>
   | DifficultyLevel.IAmDeathIncarnate ->
     match enemyType with 
-    | Guard -> 25
-    | Officer -> 50
-    | SS -> 100
-    | Dog -> 1
-    | Zombie -> 65
-    | FakeAdolf -> 500
-    | Adolf -> 1200
-    | Fettgesicht -> 1200
-    | Schabbs -> 2400
-    | Gretel -> 1200
-    | Hans -> 1200
-    | Otto -> 1200
-    | Ghost -> 25
+    | Guard -> 25<hp>
+    | Officer -> 50<hp>
+    | SS -> 100<hp>
+    | Dog -> 1<hp>
+    | Zombie -> 65<hp>
+    | FakeAdolf -> 500<hp>
+    | Adolf -> 1200<hp>
+    | Fettgesicht -> 1200<hp>
+    | Schabbs -> 2400<hp>
+    | Gretel -> 1200<hp>
+    | Hans -> 1200<hp>
+    | Otto -> 1200<hp>
+    | Ghost -> 25<hp>
 
 let mapFromTextures source =
   source
@@ -335,7 +335,7 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
     if value-baseValue < 4us then EnemyStateType.Standing else EnemyStateType.Path PathState.Empty
   
   let gameObjects =
-    let createEnemy spriteIndex spriteBlocks framesPerBlock deathSprites attackingSprites score enemyType x y directionIntOption startingState =
+    let createEnemy spriteIndex spriteBlocks framesPerBlock deathSprites hurtSpriteIndex attackingSprites score enemyType x y directionIntOption startingState =
       let position = { vX = float raw.MapSize - float x - 0.5 ; vY = float y + 0.5 }
       { EnemyType = enemyType
         BasicGameObject = {
@@ -362,20 +362,21 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
         IsFirstAttack = true // will be set to false after first attack
         FireAtPlayerRequired = false
         HitPoints = startingHitPoints difficulty enemyType
+        HurtSpriteIndex = hurtSpriteIndex
       }
-    let guardEnemy = createEnemy 50 4 8 [90 ; 91 ; 92 ; 93 ; 95] [96 ; 97 ; 98] 100<points> EnemyType.Guard
-    let dogEnemy = createEnemy 99 3 8 [131 ; 132 ; 133 ; 134] [135 ; 136 ; 137] 200<points> EnemyType.Dog
-    let officerEnemy = createEnemy 138 4 8 [179 ; 180 ; 181 ; 183] [184 ; 185 ; 186] 500<points> EnemyType.SS
-    let zombieEnemy = createEnemy 187 4 8 [228 ; 229 ; 230 ; 232 ; 233] [234 ; 235 ; 236 ; 237] 700<points> EnemyType.Zombie
-    let leonEnemy = createEnemy 238 4 8 [279 ; 280 ; 281 ; 283 ; 284] [285 ; 286 ; 287] 400<points> EnemyType.Officer
-    let hansEnemy = createEnemy 296 1 4 [304 ; 305 ; 306 ; 303] [300; 301 ; 302] 2000<points> EnemyType.Hans
-    let schabbsEnemy = createEnemy 307 1 4 [313 ; 314 ; 315 ; 316] [311 ; 312] 2000<points> EnemyType.Schabbs
-    let fakeAdolfEnemy = createEnemy 321 1 4 [328 ; 329 ; 330 ; 331 ; 332 ; 333] [] 2000<points> EnemyType.FakeAdolf
+    let guardEnemy = createEnemy 50 4 8 [90 ; 91 ; 92 ; 93 ; 95] 94 [96 ; 97 ; 98] 100<points> EnemyType.Guard
+    let dogEnemy = createEnemy 99 3 8 [131 ; 132 ; 133 ; 134] 131 [135 ; 136 ; 137] 200<points> EnemyType.Dog
+    let officerEnemy = createEnemy 138 4 8 [179 ; 180 ; 181 ; 183] 182 [184 ; 185 ; 186] 500<points> EnemyType.SS
+    let zombieEnemy = createEnemy 187 4 8 [228 ; 229 ; 230 ; 232 ; 233] 231 [234 ; 235 ; 236 ; 237] 700<points> EnemyType.Zombie
+    let leonEnemy = createEnemy 238 4 8 [279 ; 280 ; 281 ; 283 ; 284] 282 [285 ; 286 ; 287] 400<points> EnemyType.Officer
+    let hansEnemy = createEnemy 296 1 4 [304 ; 305 ; 306 ; 303] 304 [300; 301 ; 302] 2000<points> EnemyType.Hans
+    let schabbsEnemy = createEnemy 307 1 4 [313 ; 314 ; 315 ; 316] 313 [311 ; 312] 2000<points> EnemyType.Schabbs
+    let fakeAdolfEnemy = createEnemy 321 1 4 [328 ; 329 ; 330 ; 331 ; 332 ; 333] 328 [325] 2000<points> EnemyType.FakeAdolf
     // Note Hitler has two states - robot adolf and plain adolf, this only deals with plain hitler
-    let adolfEnemy = createEnemy 345 1 4 [353 ; 354 ; 355 ; 356 ; 357 ; 358 ; 359 ; 352] [349 ; 350 ; 351] 5000<points> EnemyType.Adolf 
-    let ottoEnemy = createEnemy 360 1 4 [366 ; 367 ; 368 ; 369] [364 ; 365] 5000<points> EnemyType.Otto
-    let gretelEnemy = createEnemy 385 1 4 [393 ; 394 ; 395 ; 392] [389 ; 390 ; 391] 5000<points> EnemyType.Gretel
-    let fettgesichtEnemy = createEnemy 396 1 4 [404 ; 405 ; 406 ; 407] [400 ; 401 ; 402 ; 403] 5000<points> EnemyType.Fettgesicht
+    let adolfEnemy = createEnemy 345 1 4 [353 ; 354 ; 355 ; 356 ; 357 ; 358 ; 359 ; 352] 353 [349 ; 350 ; 351] 5000<points> EnemyType.Adolf 
+    let ottoEnemy = createEnemy 360 1 4 [366 ; 367 ; 368 ; 369] 366 [364 ; 365] 5000<points> EnemyType.Otto
+    let gretelEnemy = createEnemy 385 1 4 [393 ; 394 ; 395 ; 392] 393 [389 ; 390 ; 391] 5000<points> EnemyType.Gretel
+    let fettgesichtEnemy = createEnemy 396 1 4 [404 ; 405 ; 406 ; 407] 404 [400 ; 401 ; 402 ; 403] 5000<points> EnemyType.Fettgesicht
     
     let withHitPoints pts go = { go with HitpointsRestored = pts ; Pickupable = true }
     let withScore pts go = { go with Score = pts ; Pickupable = true }
@@ -557,6 +558,7 @@ let getWeapon (sprites:Texture array) weaponType scaleSprite =
       AutoRepeat = false
       RequiresAmmunition = false
       StatusBarImageIndex = 0
+      WeaponType = WeaponType.Knife
     }
   | WeaponType.Pistol ->
     { Sprites = ({421..425} |> toSpriteSet) @ ({424..422} |> toSpriteSet)
@@ -565,6 +567,7 @@ let getWeapon (sprites:Texture array) weaponType scaleSprite =
       AutoRepeat = false
       RequiresAmmunition = true
       StatusBarImageIndex = 1
+      WeaponType = WeaponType.Pistol
     }
   | WeaponType.MachineGun ->
     { Sprites = {426..430} |> toSpriteSet
@@ -573,6 +576,7 @@ let getWeapon (sprites:Texture array) weaponType scaleSprite =
       AutoRepeat = true
       RequiresAmmunition = true
       StatusBarImageIndex = 2
+      WeaponType = WeaponType.MachineGun
     }
   | WeaponType.ChainGun ->
     { Sprites = {431..435} |> toSpriteSet
@@ -581,6 +585,7 @@ let getWeapon (sprites:Texture array) weaponType scaleSprite =
       AutoRepeat = true
       RequiresAmmunition = true
       StatusBarImageIndex = 3
+      WeaponType = WeaponType.ChainGun
     }
 
 (* | WeaponType.Knife -> { SpriteIndex = 416 ; Ammunition = System.Int32.MaxValue ; CurrentFrame = 0 ; Damage = 25 }

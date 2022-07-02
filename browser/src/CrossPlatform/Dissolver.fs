@@ -6,7 +6,6 @@ let private random = System.Random().Next
 let create (width:int) (height:int) (zoom:float) =
   let dissolveWidth = float width/zoom - zoom
   let dissolveHeight = float height/zoom - zoom
-  Utils.log $"Dissolve size: {dissolveWidth},{dissolveHeight}"
   let coordinates =
     {0..int dissolveHeight+1}
     |> Seq.map(fun y ->

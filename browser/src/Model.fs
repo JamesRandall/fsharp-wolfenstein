@@ -254,7 +254,7 @@ type EnemyStateType =
   | Ambushing
   | Attack
   | Path of PathState
-  | Pain
+  | Pain of EnemyStateType
   | Shoot
   | Chase of int*int // co-ordinates we are moving to as part of the chase
   | Die
@@ -290,7 +290,8 @@ type Enemy =
     State: EnemyStateType
     IsFirstAttack: bool // shoud start at true and be set to false after first attack
     FireAtPlayerRequired: bool // set to true during the update and AI loop if the enemy has fired at the player that frame
-    HitPoints: int
+    HitPoints: int<hp>
+    HurtSpriteIndex: int
   }
   member this.DirectionVector = this.Direction.ToVector()
   member this.StationarySpriteBlockIndex = this.BasicGameObject.SpriteIndex
@@ -303,12 +304,14 @@ type Enemy =
     | EnemyStateType.Chase _
     | EnemyStateType.Path _ -> this.MovementSpriteBlockIndex this.CurrentAnimationFrame
     | EnemyStateType.Attack -> this.AttackSpriteIndexes.[this.CurrentAnimationFrame]
+    | EnemyStateType.Pain _ -> this.HurtSpriteIndex
     | _ -> this.BasicGameObject.SpriteIndex
   static member AnimationTimeForState state =
     match state with
     | EnemyStateType.Attack -> 200.<ms>
     | EnemyStateType.Chase _ -> 100.<ms>
-    | EnemyStateType.Path _ -> 200.<ms>
+    | EnemyStateType.Path _ -> 300.<ms>
+    | EnemyStateType.Pain _ -> 100.<ms>
     | EnemyStateType.Dead | EnemyStateType.Die -> 100.<ms>
     | _ -> 0.<ms>
   member this.SpriteIndexForAnimationFrame =
@@ -346,6 +349,7 @@ type PlayerWeapon =
     AutoRepeat: bool
     RequiresAmmunition: bool
     StatusBarImageIndex: int
+    WeaponType: WeaponType
   }
   member x.AnimationFrames = x.Sprites.Length
   member x.CurrentSprite = x.Sprites.[x.CurrentFrame]

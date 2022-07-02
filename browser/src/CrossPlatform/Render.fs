@@ -117,39 +117,45 @@ module Objects =
       | GameObject.Enemy e ->
         if e.IsAlive then
           e.DirectionVector
-          |> Option.map(fun directionVector ->
-            // we can precalc the vector array below whenever the enemy changes direction
-            let spriteQuadrants = 8
-            let quadrantSize = (360.<degrees> / float spriteQuadrants) |> degreesToRadians
-            let playerRelativePosition =
-              { vX = game.Camera.Position.vX - e.BasicGameObject.Position.vX
-                vY = game.Camera.Position.vY - e.BasicGameObject.Position.vY
-              }.Normalize()
-            let vectors =
-              {0..spriteQuadrants-1}
-              |> Seq.map(fun quadrant ->
-                let centerAngle = float quadrant * quadrantSize
-                let startAngle = centerAngle - quadrantSize/2.
-                let endAngle = centerAngle + quadrantSize/2.
-                let startVector = directionVector.Rotate startAngle
-                let endVector = directionVector.Rotate endAngle
-                startVector,endVector
-              )
-              |> Seq.toArray
-            // Make sure the player position is within the triangle by shortening its distance from the enemy -
-            // a magnitude point will not be in the triangle (the magnitude is essentially the radius on a circle
-            // and a triangle formed from two points on the circle will not encompass the radius)
-            let playerTestPoint = { vX = playerRelativePosition.vX/2. ; vY = playerRelativePosition.vY/2. }
-            // Anchor the triangle at the center
-            let p1 = { vX = 0. ; vY = 0. }
-            let quadrantIndex =
-              vectors
-              |> FSharp.Collections.Array.tryFindIndex (fun (p2,p3) ->
-                App.Ray.isPointInTriangle p1 p2 p3 playerTestPoint
-              )
-              |> Option.defaultValue 0
-            //e.BasicGameObject.SpriteIndex + quadrantIndex
-            e.BaseSpriteIndexForState + quadrantIndex
+          |> Option.bind(fun directionVector ->
+            match e.State with
+            | EnemyStateType.Die
+            | EnemyStateType.Pain _
+            | EnemyStateType.Attack
+            | EnemyStateType.Shoot -> None
+            | _ ->
+              // we can precalc the vector array below whenever the enemy changes direction
+              let spriteQuadrants = 8
+              let quadrantSize = (360.<degrees> / float spriteQuadrants) |> degreesToRadians
+              let playerRelativePosition =
+                { vX = game.Camera.Position.vX - e.BasicGameObject.Position.vX
+                  vY = game.Camera.Position.vY - e.BasicGameObject.Position.vY
+                }.Normalize()
+              let vectors =
+                {0..spriteQuadrants-1}
+                |> Seq.map(fun quadrant ->
+                  let centerAngle = float quadrant * quadrantSize
+                  let startAngle = centerAngle - quadrantSize/2.
+                  let endAngle = centerAngle + quadrantSize/2.
+                  let startVector = directionVector.Rotate startAngle
+                  let endVector = directionVector.Rotate endAngle
+                  startVector,endVector
+                )
+                |> Seq.toArray
+              // Make sure the player position is within the triangle by shortening its distance from the enemy -
+              // a magnitude point will not be in the triangle (the magnitude is essentially the radius on a circle
+              // and a triangle formed from two points on the circle will not encompass the radius)
+              let playerTestPoint = { vX = playerRelativePosition.vX/2. ; vY = playerRelativePosition.vY/2. }
+              // Anchor the triangle at the center
+              let p1 = { vX = 0. ; vY = 0. }
+              let quadrantIndex =
+                vectors
+                |> FSharp.Collections.Array.tryFindIndex (fun (p2,p3) ->
+                  App.Ray.isPointInTriangle p1 p2 p3 playerTestPoint
+                )
+                |> Option.defaultValue 0
+              //e.BasicGameObject.SpriteIndex + quadrantIndex
+              e.BaseSpriteIndexForState + quadrantIndex |> Some
           )
           |> Option.defaultValue e.BaseSpriteIndexForState //e.BasicGameObject.SpriteIndex
         else

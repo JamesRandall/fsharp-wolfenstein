@@ -223,28 +223,71 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
       game,false
     | _ -> game,false
     
-  let updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame indexOfGameObject (game,gameObject,newObjects)  =
+  let updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame indexOfGameObject (game,gameObject:GameObject,newObjects)  =
+    
+    
+    let calculateDamage () =
+      let result =
+        match game.Player.CurrentWeapon.WeaponType with
+        | WeaponType.Knife ->
+          let distance = (gameObject.BasicGameObject.Position - game.Camera.Position).Magnitude
+          if distance < 1. then random.Next(255) >>> 4 else 0
+        | _ ->
+          let deltaX = abs (gameObject.BasicGameObject.Position.vX - game.Camera.Position.vX)
+          let deltaY = abs (gameObject.BasicGameObject.Position.vY - game.Camera.Position.vY)
+          let distance = max deltaX deltaY
+          if distance < 2. then
+            random.Next(255) / 4
+          elif distance < 4. then
+            random.Next(255) / 6
+          elif float (random.Next(255) / 12) < distance then 0
+          else random.Next(255) / 6
+      result * 1<hp>
+
     match gameObject with
     | GameObject.Enemy e ->
       if e.IsAlive then
         match renderingResult.SpriteInFrontOfPlayerIndexOption,beganFiringSequenceOnFrame with
         | Some firingHitGameObjectIndex, true ->
           if firingHitGameObjectIndex = indexOfGameObject then
-            playRandomEnemyDeathSoundEffectAtVolume game e.BasicGameObject.Position
-            // update the players score and drop ammunition
-            { game with
-                Player = { game.Player with Score = game.Player.Score + e.BasicGameObject.Score }
-            }
-            ,
-            // begin the death sequence
-            { e with
-                State = EnemyStateType.Die
-                CurrentAnimationFrame = 0
-                TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState EnemyStateType.Die
-                BasicGameObject = { e.BasicGameObject with CollidesWithBullets = false }
-            } |> GameObject.Enemy
-            ,
-            (Map.createAmmo game.Camera.Position e.BasicGameObject.MapPosition) :: newObjects
+            let damage = calculateDamage ()
+            Utils.log $"Damage on enemy: {damage}"
+            if damage > 0<hp> then
+              let newEnemyHitPoints = e.HitPoints - damage
+              if newEnemyHitPoints > 0<hp> then
+                let newState = EnemyStateType.Pain e.State
+                // still alive
+                game
+                ,
+                { e with
+                    State = newState
+                    CurrentAnimationFrame = 0
+                    HitPoints = newEnemyHitPoints
+                    TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState newState
+                } |> GameObject.Enemy
+                ,
+                newObjects
+              else
+                // dead
+                playRandomEnemyDeathSoundEffectAtVolume game e.BasicGameObject.Position
+                // update the players score and drop ammunition
+                { game with
+                    Player = { game.Player with Score = game.Player.Score + e.BasicGameObject.Score }
+                }
+                ,
+                // begin the death sequence
+                { e with
+                    State = EnemyStateType.Die
+                    CurrentAnimationFrame = 0
+                    TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState EnemyStateType.Die
+                    BasicGameObject = { e.BasicGameObject with CollidesWithBullets = false }
+                } |> GameObject.Enemy
+                ,
+                match e.EnemyType with
+                | EnemyType.Dog -> newObjects
+                | _ -> (Map.createAmmo game.Camera.Position e.BasicGameObject.MapPosition) :: newObjects
+            else
+              game,e |> GameObject.Enemy,newObjects
           else
             game,e |> GameObject.Enemy,newObjects
         | _ -> game,e |> GameObject.Enemy,newObjects
@@ -259,6 +302,8 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
       | GameObject.Enemy enemy ->
         let timeRemainingInAnimationFrame = enemy.TimeUntilNextAnimationFrame-frameTime
         match enemy.State with
+        | EnemyStateType.Pain _ ->
+          { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
         | EnemyStateType.Attack
         | EnemyStateType.Dead
         | EnemyStateType.Die ->
@@ -330,8 +375,7 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
       | GameObject.Enemy enemy ->
         { enemy with FireAtPlayerRequired = false } |> GameObject.Enemy
       | _ -> gameObject
-    game,gameObject,newObjects
-    
+    game,updatedGameObject,newObjects
     
   let updateEnemies (game:Game,beganFiringSequenceOnFrame) =
     let _,updatedGame,updatedGameObjects =

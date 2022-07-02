@@ -32,7 +32,6 @@ let calculateVolumeAtDistance (game:Game) (position:Vector2D) =
     let volume =
       if distance <= 1. then 1. else 1. - System.Math.Log(distance, maximumDistanceAtWhichSoundCanBeHeard)
       |> areaModifier
-    Utils.log $"Distance: {distance}, Volume: {volume}"
     volume
 
 let playRandomEnemyDeathSoundEffectAtVolume (game:Game) (position:Vector2D) =

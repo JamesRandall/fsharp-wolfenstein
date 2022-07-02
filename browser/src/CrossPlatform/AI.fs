@@ -227,6 +227,13 @@ let createAttackState game enemy =
   
 let createChaseState canSeePlayer (game:Game) enemy =
   if canSeePlayer then
+    match enemy.State with
+    | EnemyStateType.Ambushing
+    | EnemyStateType.Standing
+    | EnemyStateType.Path _ ->
+      Audio.playSoundEffect game enemy.BasicGameObject.Position SoundEffect.UttGuards
+    | _ -> ()
+    
     let enemyX, enemyY = enemy.BasicGameObject.MapPosition
     let playerX, playerY = game.PlayerMapPosition
     let absDeltaX = abs (enemyX - playerX)
@@ -271,8 +278,8 @@ let getNextState canSeePlayer game enemy =
 let preProcess canSeePlayer (enemy,game) =
   // preprocess looks for state changes based on the current game world state
   let newEnemy = enemy |> getNextState canSeePlayer game
-  if newEnemy.State <> enemy.State then
-    Utils.log $"Enemy at {enemy.BasicGameObject.Position.vX}, {enemy.BasicGameObject.Position.vY} moving from {enemy.State} to {newEnemy.State}"
+  //if newEnemy.State <> enemy.State then
+  //  Utils.log $"Enemy at {enemy.BasicGameObject.Position.vX}, {enemy.BasicGameObject.Position.vY} moving from {enemy.State} to {newEnemy.State}"
   (newEnemy,game)
     
 // this is loosely based on T_Shoot in WL_ACT2.C
@@ -317,7 +324,6 @@ let firingOnPlayer canSeePlayer (enemy:Enemy,game:Game)  =
     else
       0
       
-  if damage > 0 then Utils.log $"Damage: {damage}"
   let maximumPossibleDamage = 64.
       
   enemy,
@@ -333,6 +339,13 @@ let firingOnPlayer canSeePlayer (enemy:Enemy,game:Game)  =
 let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) (enemy,game) =
   // updates the enemy based on its state
   match enemy.State,enemy.DirectionVector with
+  | EnemyStateType.Pain previousState,_ ->
+    if enemy.TimeUntilNextAnimationFrame < 0.<ms> then
+      { enemy with TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState previousState ; State = previousState }
+      ,
+      game
+    else
+      enemy, game
   | EnemyStateType.Chase (targetMapX, targetMapY), Some direction ->
     let enemyVelocityUnitsPerSecond = 1.
     let targetPosition = { vX = float targetMapX + 0.5 ; vY = float targetMapY + 0.5 }
