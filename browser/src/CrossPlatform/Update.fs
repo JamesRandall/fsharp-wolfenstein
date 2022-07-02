@@ -223,62 +223,70 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
       game,false
     | _ -> game,false
     
-  let updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame indexOfGameObject gameObject =
+  let updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame indexOfGameObject (game,gameObject,newObjects)  =
     match gameObject with
     | GameObject.Enemy e ->
-      let updatedEnemy,didDie =
-        if e.IsAlive then
-          match renderingResult.SpriteInFrontOfPlayerIndexOption,beganFiringSequenceOnFrame with
-          | Some firingHitGameObjectIndex, true ->
-            if firingHitGameObjectIndex = indexOfGameObject then
-              playRandomEnemyDeathSoundEffectAtVolume game e.BasicGameObject.Position
-              // begin the death sequence
-              { e with
-                  State = EnemyStateType.Die
-                  CurrentAnimationFrame = 0
-                  TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState EnemyStateType.Die
-                  BasicGameObject = { e.BasicGameObject with CollidesWithBullets = false }
-              },true
-            else
-              e,false
-          | _ -> e,false
-        else
-          e,false
-      GameObject.Enemy updatedEnemy,didDie
-    | GameObject.Static t -> GameObject.Static t,false
+      if e.IsAlive then
+        match renderingResult.SpriteInFrontOfPlayerIndexOption,beganFiringSequenceOnFrame with
+        | Some firingHitGameObjectIndex, true ->
+          if firingHitGameObjectIndex = indexOfGameObject then
+            playRandomEnemyDeathSoundEffectAtVolume game e.BasicGameObject.Position
+            // update the players score and drop ammunition
+            { game with
+                Player = { game.Player with Score = game.Player.Score + e.BasicGameObject.Score }
+            }
+            ,
+            // begin the death sequence
+            { e with
+                State = EnemyStateType.Die
+                CurrentAnimationFrame = 0
+                TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState EnemyStateType.Die
+                BasicGameObject = { e.BasicGameObject with CollidesWithBullets = false }
+            } |> GameObject.Enemy
+            ,
+            (Map.createAmmo game.Camera.Position e.BasicGameObject.MapPosition) :: newObjects
+          else
+            game,e |> GameObject.Enemy,newObjects
+        | _ -> game,e |> GameObject.Enemy,newObjects
+      else
+        game,e |> GameObject.Enemy,newObjects
+      //updatedGame,updatedEnemy |> GameObject.Enemy, newObjects
+    | GameObject.Static _ -> game,gameObject,newObjects
     
-  let updateEnemyAnimation frameTime gameObject =
-    match gameObject with
-    | GameObject.Enemy enemy ->
-      let timeRemainingInAnimationFrame = enemy.TimeUntilNextAnimationFrame-frameTime
-      match enemy.State with
-      | EnemyStateType.Attack
-      | EnemyStateType.Dead
-      | EnemyStateType.Die ->
-        if enemy.CurrentAnimationFrame < enemy.AnimationFrames-1 then
+  let updateEnemyAnimation frameTime (game:Game,gameObject,newObjects) =
+    let updatedGameObject =
+      match gameObject with
+      | GameObject.Enemy enemy ->
+        let timeRemainingInAnimationFrame = enemy.TimeUntilNextAnimationFrame-frameTime
+        match enemy.State with
+        | EnemyStateType.Attack
+        | EnemyStateType.Dead
+        | EnemyStateType.Die ->
+          if enemy.CurrentAnimationFrame < enemy.AnimationFrames-1 then
+            if timeRemainingInAnimationFrame < 0.<ms> then
+              { enemy with
+                  CurrentAnimationFrame = enemy.CurrentAnimationFrame+1
+                  TimeUntilNextAnimationFrame = (Enemy.AnimationTimeForState enemy.State) + timeRemainingInAnimationFrame 
+                  FireAtPlayerRequired = enemy.CurrentAnimationFrame+1 = enemy.AnimationFrames-1 } |> GameObject.Enemy
+            else
+              { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
+          else
+            match enemy.State with
+            | EnemyStateType.Attack ->
+              { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
+            | _ -> enemy |> GameObject.Enemy
+        | EnemyStateType.Chase _
+        | EnemyStateType.Path _ ->
           if timeRemainingInAnimationFrame < 0.<ms> then
-            { enemy with
-                CurrentAnimationFrame = enemy.CurrentAnimationFrame+1
-                TimeUntilNextAnimationFrame = (Enemy.AnimationTimeForState enemy.State) + timeRemainingInAnimationFrame 
-                FireAtPlayerRequired = enemy.CurrentAnimationFrame+1 = enemy.AnimationFrames-1 } |> GameObject.Enemy
+            let nextFrame =
+              if enemy.CurrentAnimationFrame + 1 > enemy.NumberOfMovementAnimationFrames then 0 else enemy.CurrentAnimationFrame + 1
+            let timeUntilNextFrame = (Enemy.AnimationTimeForState enemy.State) + timeRemainingInAnimationFrame
+            { enemy with CurrentAnimationFrame = nextFrame ; TimeUntilNextAnimationFrame = timeUntilNextFrame  } |> GameObject.Enemy
           else
             { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
-        else
-          match enemy.State with
-          | EnemyStateType.Attack ->
-            { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
-          | _ -> enemy |> GameObject.Enemy
-      | EnemyStateType.Chase _
-      | EnemyStateType.Path _ ->
-        if timeRemainingInAnimationFrame < 0.<ms> then
-          let nextFrame =
-            if enemy.CurrentAnimationFrame + 1 > enemy.NumberOfMovementAnimationFrames then 0 else enemy.CurrentAnimationFrame + 1
-          let timeUntilNextFrame = (Enemy.AnimationTimeForState enemy.State) + timeRemainingInAnimationFrame
-          { enemy with CurrentAnimationFrame = nextFrame ; TimeUntilNextAnimationFrame = timeUntilNextFrame  } |> GameObject.Enemy
-        else
-          { enemy with TimeUntilNextAnimationFrame = timeRemainingInAnimationFrame } |> GameObject.Enemy
-      | _ -> enemy |> GameObject.Enemy
-    | _ -> gameObject
+        | _ -> enemy |> GameObject.Enemy
+      | _ -> gameObject
+    game,updatedGameObject,newObjects
     
   let openDoorsInRangeOfEnemies game =
     let rangeToOpenDoorsAt = 1.5
@@ -316,42 +324,29 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
       | _ -> innerGame
     ) game
     
-  let resetNeedToFire gameObject =
-    match gameObject with
-    | GameObject.Enemy enemy ->
-      { enemy with FireAtPlayerRequired = false } |> GameObject.Enemy
-    | _ -> gameObject
+  let resetNeedToFire (game:Game,gameObject:GameObject,newObjects) =
+    let updatedGameObject =
+      match gameObject with
+      | GameObject.Enemy enemy ->
+        { enemy with FireAtPlayerRequired = false } |> GameObject.Enemy
+      | _ -> gameObject
+    game,gameObject,newObjects
     
     
   let updateEnemies (game:Game,beganFiringSequenceOnFrame) =
     let _,updatedGame,updatedGameObjects =
       game.GameObjects
       |> List.fold(fun (i,innerGame,gameObjects) go ->
-        let updatedGameObject,didDie =
-          go
-          |> resetNeedToFire
+        let updatedGame,updatedGameObject,newObjects =
+          (game,go,[])
+          |> resetNeedToFire 
           |> updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame i
-        let updatedGameObject,updatedGame =
-          updatedGameObject
-          |> updateEnemyAnimation frameTime 
-          |> applyAi frameTime innerGame // this did read "game" but I think that's wrong, though I've not seen a bug
-        let updatedGame =
-          if didDie then
-            { updatedGame with
-                Player =
-                  { updatedGame.Player with
-                      Score = updatedGame.Player.Score + go.BasicGameObject.Score
-                  } 
-            }
-          else
-            updatedGame
-        let gameObjects =
-          if didDie then
-            (Map.createAmmo updatedGame.Camera.Position go.BasicGameObject.MapPosition) :: gameObjects
-          else
-            gameObjects
-        i+1,updatedGame,(updatedGameObject |> calculateRelativeGameObjectPosition updatedGame) :: gameObjects
-      ) (0,game,[])           
+          |> updateEnemyAnimation frameTime        
+          |> applyAi frameTime // this did read "game" but I think that's wrong, though I've not seen a bug
+        i+1,
+        updatedGame,
+        (updatedGameObject |> calculateRelativeGameObjectPosition updatedGame) :: gameObjects @ newObjects
+      ) (0,game,[])
     { updatedGame with GameObjects = updatedGameObjects } |> openDoorsInRangeOfEnemies
     
   let sortGameObjectsByDescendingDistance (game:Game) =

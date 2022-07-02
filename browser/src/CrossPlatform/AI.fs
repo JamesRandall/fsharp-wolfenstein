@@ -386,7 +386,7 @@ let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) (enemy,game) =
         (if canNowSeePlayer then (createChaseState canSeePlayer game turnedEnemy) else turnedEnemy),game
   | _ -> enemy,game
     
-let applyAi frameTime game gameObject =
+let applyAi frameTime (game,gameObject,newObjects) =
   match gameObject with
   | GameObject.Enemy enemy ->
     if enemy.IsAlive then
@@ -396,9 +396,9 @@ let applyAi frameTime game gameObject =
         |> preProcess canSeePlayer
         |> updateBasedOnCurrentState canSeePlayer frameTime
         |> firingOnPlayer canSeePlayer
-      updatedEnemy |> GameObject.Enemy, updatedGame
+      updatedGame,updatedEnemy |> GameObject.Enemy,newObjects
     else
-      gameObject,game
-  | _ -> gameObject,game
+      game,gameObject,newObjects
+  | _ -> game,gameObject,newObjects
   
   
