@@ -41,7 +41,6 @@ setCanvasSize ()
 
 
 let private controlStateFromKeyCode keyCode =
-  Utils.log keyCode
   match keyCode with
   | "ArrowUp" -> ControlState.Forward
   | "ArrowLeft" -> ControlState.TurningLeft

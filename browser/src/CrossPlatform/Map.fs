@@ -341,7 +341,9 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
       0x26us ; 0x27us ; 0x28us ; 0x29us ; 0x3Bus
       0x3Cus ; 0x44us ; 0x45us ; 0x46us ; 0x47us
     ]
-    let createEnemy spriteIndex spriteBlocks framesPerBlock deathSprites hurtSpriteIndex attackingSprites score enemyType x y directionIntOption startingState =
+    let createEnemy spriteIndex spriteBlocks framesPerBlock deathSprites hurtSpriteIndex attackingSprites score patrolSpeed chaseSpeed enemyType x y directionIntOption startingState =
+      let rawMapCell = raw.Plane0.getUint16(2 * (x + 64 * y), true)
+      let isAmbushing = rawMapCell = 0x6Aus
       let position = { vX = float raw.MapSize - float x - 0.5 ; vY = float y + 0.5 }
       { EnemyType = enemyType
         BasicGameObject = {
@@ -359,7 +361,7 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
         }
         Direction = directionIntOption |> startingMapDirectionFromInt
         //DirectionVector = directionIntOption |> Option.map startingDirectionVectorFromInt
-        State = startingState
+        State = if isAmbushing then EnemyStateType.Ambushing else startingState
         DeathSpriteIndexes = deathSprites
         AttackSpriteIndexes = attackingSprites
         SpriteBlocks = spriteBlocks
@@ -368,22 +370,25 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
         TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState startingState
         IsFirstAttack = true // will be set to false after first attack
         FireAtPlayerRequired = false
+        MoveToChaseRequired = false
         HitPoints = startingHitPoints difficulty enemyType
         HurtSpriteIndex = hurtSpriteIndex
+        PatrolSpeed = patrolSpeed
+        ChaseSpeed = chaseSpeed
       }
-    let guardEnemy = createEnemy 50 4 8 [90 ; 91 ; 92 ; 93 ; 95] 94 [96 ; 97 ; 98] 100<points> EnemyType.Guard
-    let dogEnemy = createEnemy 99 3 8 [131 ; 132 ; 133 ; 134] 131 [135 ; 136 ; 137] 200<points> EnemyType.Dog
-    let officerEnemy = createEnemy 138 4 8 [179 ; 180 ; 181 ; 183] 182 [184 ; 185 ; 186] 500<points> EnemyType.SS
-    let zombieEnemy = createEnemy 187 4 8 [228 ; 229 ; 230 ; 232 ; 233] 231 [234 ; 235 ; 236 ; 237] 700<points> EnemyType.Zombie
-    let leonEnemy = createEnemy 238 4 8 [279 ; 280 ; 281 ; 283 ; 284] 282 [285 ; 286 ; 287] 400<points> EnemyType.Officer
-    let hansEnemy = createEnemy 296 1 4 [304 ; 305 ; 306 ; 303] 304 [300; 301 ; 302] 2000<points> EnemyType.Hans
-    let schabbsEnemy = createEnemy 307 1 4 [313 ; 314 ; 315 ; 316] 313 [311 ; 312] 2000<points> EnemyType.Schabbs
-    let fakeAdolfEnemy = createEnemy 321 1 4 [328 ; 329 ; 330 ; 331 ; 332 ; 333] 328 [325] 2000<points> EnemyType.FakeAdolf
+    let guardEnemy = createEnemy 50 4 8 [90 ; 91 ; 92 ; 93 ; 95] 94 [96 ; 97 ; 98] 100<points> 0.5 1. EnemyType.Guard
+    let dogEnemy = createEnemy 99 3 8 [131 ; 132 ; 133 ; 134] 131 [135 ; 136 ; 137] 200<points> 1. 1.5 EnemyType.Dog
+    let officerEnemy = createEnemy 138 4 8 [179 ; 180 ; 181 ; 183] 182 [184 ; 185 ; 186] 500<points> 0.5 1.25 EnemyType.SS
+    let zombieEnemy = createEnemy 187 4 8 [228 ; 229 ; 230 ; 232 ; 233] 231 [234 ; 235 ; 236 ; 237] 700<points> 0.5 1. EnemyType.Zombie
+    let leonEnemy = createEnemy 238 4 8 [279 ; 280 ; 281 ; 283 ; 284] 282 [285 ; 286 ; 287] 400<points> 0.5 1.25 EnemyType.Officer
+    let hansEnemy = createEnemy 296 1 4 [304 ; 305 ; 306 ; 303] 304 [300; 301 ; 302] 2000<points> 0.5 1. EnemyType.Hans
+    let schabbsEnemy = createEnemy 307 1 4 [313 ; 314 ; 315 ; 316] 313 [311 ; 312] 2000<points> 0.5 1. EnemyType.Schabbs
+    let fakeAdolfEnemy = createEnemy 321 1 4 [328 ; 329 ; 330 ; 331 ; 332 ; 333] 328 [325] 2000<points> 0.5 1. EnemyType.FakeAdolf
     // Note Hitler has two states - robot adolf and plain adolf, this only deals with plain hitler
-    let adolfEnemy = createEnemy 345 1 4 [353 ; 354 ; 355 ; 356 ; 357 ; 358 ; 359 ; 352] 353 [349 ; 350 ; 351] 5000<points> EnemyType.Adolf 
-    let ottoEnemy = createEnemy 360 1 4 [366 ; 367 ; 368 ; 369] 366 [364 ; 365] 5000<points> EnemyType.Otto
-    let gretelEnemy = createEnemy 385 1 4 [393 ; 394 ; 395 ; 392] 393 [389 ; 390 ; 391] 5000<points> EnemyType.Gretel
-    let fettgesichtEnemy = createEnemy 396 1 4 [404 ; 405 ; 406 ; 407] 404 [400 ; 401 ; 402 ; 403] 5000<points> EnemyType.Fettgesicht
+    let adolfEnemy = createEnemy 345 1 4 [353 ; 354 ; 355 ; 356 ; 357 ; 358 ; 359 ; 352] 353 [349 ; 350 ; 351] 5000<points> 0.5 1. EnemyType.Adolf 
+    let ottoEnemy = createEnemy 360 1 4 [366 ; 367 ; 368 ; 369] 366 [364 ; 365] 5000<points> 0.5 1. EnemyType.Otto
+    let gretelEnemy = createEnemy 385 1 4 [393 ; 394 ; 395 ; 392] 393 [389 ; 390 ; 391] 5000<points> 0.5 1. EnemyType.Gretel
+    let fettgesichtEnemy = createEnemy 396 1 4 [404 ; 405 ; 406 ; 407] 404 [400 ; 401 ; 402 ; 403] 5000<points> 0.5 1. EnemyType.Fettgesicht
     
     let withHitPoints pts go = { go with HitpointsRestored = pts ; Pickupable = true }
     let withScore pts go = { go with Score = pts ; Pickupable = true }

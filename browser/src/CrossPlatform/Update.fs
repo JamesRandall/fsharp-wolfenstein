@@ -12,6 +12,12 @@ let private doorOpeningTime = 1000.<ms>
 let private doorOpenTime = 5000.<ms>
 let private random = System.Random()
 
+[<RequireQualifiedAccess>]
+type PlayerAttackAction =
+  | DidNotFire
+  | WithGun
+  | WithKnife
+
 let updateFrame game nextLevel frameTime createPixelDissolver (renderingResult:WallRenderingResult) =
   let (|IsActive|_|) controlState game = if game.ControlState &&& controlState > ControlState.None then Some () else None 
   let frameMultiplier = float frameTime / 1000. 
@@ -42,6 +48,7 @@ let updateFrame game nextLevel frameTime createPixelDissolver (renderingResult:W
           vY = if game.Map.[int (posY + strafeY * speed)].[int posX] = Cell.Empty then posY + (strafeY * speed) else posY
       }
     { inputGame with Camera = { inputGame.Camera with Position = newCameraPosition } }
+    
   let rotate inputGame =
     let rotationMultiplier =
       match inputGame with
@@ -185,7 +192,7 @@ let updateFrame game nextLevel frameTime createPixelDissolver (renderingResult:W
             Player = { (updatedWeapon |> updatePlayerWithWeapon game.Player.CurrentWeaponIndex) with
                         Ammunition = game.Player.Ammunition - (if game.Player.CurrentWeapon.RequiresAmmunition then 1<bullets> else 0<bullets>)
                      } 
-        },true
+        },(if game.Player.CurrentWeapon.RequiresAmmunition then PlayerAttackAction.WithGun else PlayerAttackAction.WithKnife)
       elif game.Player.CurrentWeapon.RequiresAmmunition then
         // weapon needs ammo but we have none so switch to the knife
         let newWeaponIndex = game.Player.Weapons |> List.findIndex(fun w -> not w.RequiresAmmunition) 
@@ -201,9 +208,9 @@ let updateFrame game nextLevel frameTime createPixelDissolver (renderingResult:W
                         Ammunition = game.Player.Ammunition
                         CurrentWeaponIndex = newWeaponIndex
                      } 
-        },true
+        },PlayerAttackAction.WithKnife
       else
-        game,false
+        game,PlayerAttackAction.DidNotFire
     | true, Some timeInMs, _ ->
       let newTimeRemaining = timeInMs - frameTime
       if newTimeRemaining < 0.<ms> then
@@ -212,21 +219,21 @@ let updateFrame game nextLevel frameTime createPixelDissolver (renderingResult:W
           { game with
               TimeToNextWeaponFrame = Some (weaponAnimationFrameTime + newTimeRemaining)
               Player = updatedWeapon |> updatePlayerWithWeapon game.Player.CurrentWeaponIndex
-          },false
+          },PlayerAttackAction.DidNotFire
         else
           let updatedWeapon = { currentWeapon with CurrentFrame = 0 }
           { game with
                 IsFiring = false
                 Player = updatedWeapon |> updatePlayerWithWeapon game.Player.CurrentWeaponIndex
                 TimeToNextWeaponFrame = None
-            },false
+            },PlayerAttackAction.DidNotFire
       else
-        { game with TimeToNextWeaponFrame = Some newTimeRemaining },false
+        { game with TimeToNextWeaponFrame = Some newTimeRemaining },PlayerAttackAction.DidNotFire
     | true, None, _ ->
-      game,false
-    | _ -> game,false
+      game,PlayerAttackAction.DidNotFire
+    | _ -> game,PlayerAttackAction.DidNotFire
     
-  let updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame indexOfGameObject (game,gameObject:GameObject,newObjects)  =
+  let updateEnemyBasedOnPlayerFiring (beganFiringSequenceOnFrame:PlayerAttackAction) indexOfGameObject (game,gameObject:GameObject,newObjects)  =
     
     
     let calculateDamage () =
@@ -246,13 +253,28 @@ let updateFrame game nextLevel frameTime createPixelDissolver (renderingResult:W
           elif float (random.Next(255) / 12) < distance then 0
           else random.Next(255) / 6
       result * 1<hp>
+      
+    let updateEnemyBasedOnVolume e =
+      match e.State with
+      | EnemyStateType.Standing
+      | EnemyStateType.Path _ ->
+        let volume = calculateVolumeOfPlayerRelativeToEnemy game e.BasicGameObject.Position
+        Utils.log $"Volume as heard: {volume}"
+        if (volume > 0.5 || (volume > 0.1 && random.Next(255) < 128) || (volume > 0.0 && random.Next(255) < 64)) && e.State <> EnemyStateType.Ambushing then
+          Utils.log $"Enemy at {e.BasicGameObject.MapPosition} heard the player"
+          { e with MoveToChaseRequired = true }
+        else
+          e
+      | _ -> e
 
     match gameObject with
     | GameObject.Enemy e ->
       if e.IsAlive then
         match renderingResult.SpriteInFrontOfPlayerIndexOption,beganFiringSequenceOnFrame with
-        | Some firingHitGameObjectIndex, true ->
+        | Some firingHitGameObjectIndex, PlayerAttackAction.WithKnife
+        | Some firingHitGameObjectIndex, PlayerAttackAction.WithGun ->
           if firingHitGameObjectIndex = indexOfGameObject then
+            // this is the enemy we aimed at
             let damage = calculateDamage ()
             Utils.log $"Damage on enemy: {damage}"
             if damage > 0<hp> then
@@ -292,7 +314,14 @@ let updateFrame game nextLevel frameTime createPixelDissolver (renderingResult:W
             else
               game,e |> GameObject.Enemy,newObjects
           else
-            game,e |> GameObject.Enemy,newObjects
+            // if we didn't hit the enemy then we need to decide if they heard us
+            match beganFiringSequenceOnFrame with
+            | PlayerAttackAction.WithGun ->
+              game,e |> updateEnemyBasedOnVolume |> GameObject.Enemy,newObjects
+            | _ -> game,e |> GameObject.Enemy,newObjects
+        | _,PlayerAttackAction.WithGun ->
+          // if we didn't hit the enemy then we need to decide if they heard us
+          game,e |> updateEnemyBasedOnVolume |> GameObject.Enemy,newObjects
         | _ -> game,e |> GameObject.Enemy,newObjects
       else
         game,e |> GameObject.Enemy,newObjects

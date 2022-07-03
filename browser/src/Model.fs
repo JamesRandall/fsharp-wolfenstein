@@ -294,8 +294,11 @@ type Enemy =
     State: EnemyStateType
     IsFirstAttack: bool // shoud start at true and be set to false after first attack
     FireAtPlayerRequired: bool // set to true during the update and AI loop if the enemy has fired at the player that frame
+    MoveToChaseRequired: bool // set to true during the update loop and the AI loop picks up on it at state change to move to chase 
     HitPoints: int<hp>
     HurtSpriteIndex: int
+    PatrolSpeed: float
+    ChaseSpeed: float
   }
   member this.DirectionVector = this.Direction.ToVector()
   member this.StationarySpriteBlockIndex = this.BasicGameObject.SpriteIndex
