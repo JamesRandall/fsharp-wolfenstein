@@ -12,7 +12,7 @@ let private doorOpeningTime = 1000.<ms>
 let private doorOpenTime = 5000.<ms>
 let private random = System.Random()
 
-let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderingResult) =
+let updateFrame game nextLevel frameTime createPixelDissolver (renderingResult:WallRenderingResult) =
   let (|IsActive|_|) controlState game = if game.ControlState &&& controlState > ControlState.None then Some () else None 
   let frameMultiplier = float frameTime / 1000. 
   let movementSpeed = 6.0 * frameMultiplier // squares per second
@@ -21,24 +21,17 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
   let posY = game.Camera.Position.vY
   let dirX = game.Camera.Direction.vX
   let dirY = game.Camera.Direction.vY
+  
   let move speed inputGame =
-    let canTraverse cell =
-      match cell with
-      | Cell.Door doorIndex ->
-        let doorState = game.Doors.[doorIndex]
-        match doorState.Status with
-        | DoorStatus.Open
-        | DoorStatus.Opening -> true
-        | _ -> false
-      | Cell.Wall _ -> false
-      | _ -> true
-    
     let newCameraPosition =
+      let newMapX = int (posX + dirX * speed)
+      let newMapY = int (posY + dirY * speed)
       { inputGame.Camera.Position with
-          vX = if game.Map.[int posY].[int (posX + dirX * speed)] |> canTraverse then posX + (dirX * speed) else posX 
-          vY = if game.Map.[int (posY + dirY * speed)].[int posX] |> canTraverse then posY + (dirY * speed) else posY
+          vX = if (newMapX,int posY) |> Ray.canPlayerTraverse game then posX + (dirX * speed) else posX 
+          vY = if (int posX, newMapY) |> Ray.canPlayerTraverse game then posY + (dirY * speed) else posY
       }
     { inputGame with Camera = { inputGame.Camera with Position = newCameraPosition } }
+    
   let strafe speed inputGame =
     let strafeDirection = game.Camera.Direction.CrossProduct
     let strafeX = strafeDirection.vX
@@ -125,6 +118,9 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
             Doors = game.Doors |> List.mapi(fun i d -> if i = doorIndex then newDoorState else d)
             CompositeAreas = game.CompositeAreas |> updateCompositeAreas newDoorState
         }
+      | Cell.Wall wall ->
+        // TODO: we need to run through the berween level page here, this just moves on.
+        if wall.IsExit then game |> nextLevel else game
       | _ -> game
     else
       game
@@ -144,9 +140,13 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
               { doorState with TimeRemainingInAnimationState = newTimeRemainingInAnimationState ; Offset = newOffset },updatedCompositeAreas
           | DoorStatus.Open ->
             if newTimeRemainingInAnimationState < 0.<ms> then
-              let doorPosition = Vector2D.CreateFromMapPosition doorState.MapPosition
-              playSoundEffect game doorPosition SoundEffect.DoorClose
-              { doorState with Status = DoorStatus.Closing ; TimeRemainingInAnimationState = doorOpeningTime },updatedCompositeAreas
+              // if the player is in the way of the door don't close it
+              if game.PlayerMapPosition = doorState.MapPosition then
+                { doorState with TimeRemainingInAnimationState = 1500.<ms> },updatedCompositeAreas
+              else
+                let doorPosition = Vector2D.CreateFromMapPosition doorState.MapPosition
+                playSoundEffect game doorPosition SoundEffect.DoorClose
+                { doorState with Status = DoorStatus.Closing ; TimeRemainingInAnimationState = doorOpeningTime },updatedCompositeAreas
             else
               { doorState with TimeRemainingInAnimationState = newTimeRemainingInAnimationState },updatedCompositeAreas
           | DoorStatus.Closing ->
@@ -167,9 +167,9 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
   let handleFiring game =
     let isFireKeyPressed = int (game.ControlState &&& ControlState.Fire) > 0 
     
-    let updatePlayerWithWeapon weapon =
+    let updatePlayerWithWeapon weaponIndex weapon =
       { game.Player with
-          Weapons = game.Player.Weapons |> List.mapi(fun i wp -> if i = game.Player.CurrentWeaponIndex then weapon else wp)
+          Weapons = game.Player.Weapons |> List.mapi(fun i wp -> if i = weaponIndex then weapon else wp)
       }
     let currentWeapon = game.Player.Weapons.[game.Player.CurrentWeaponIndex]
     match game.IsFiring, game.TimeToNextWeaponFrame, isFireKeyPressed with
@@ -182,9 +182,12 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
         { game with
             IsFiring = true
             TimeToNextWeaponFrame = Some weaponAnimationFrameTime
-            Player = { (updatedWeapon |> updatePlayerWithWeapon) with Ammunition = game.Player.Ammunition - 1<bullets> } 
+            Player = { (updatedWeapon |> updatePlayerWithWeapon game.Player.CurrentWeaponIndex) with
+                        Ammunition = game.Player.Ammunition - (if game.Player.CurrentWeapon.RequiresAmmunition then 1<bullets> else 0<bullets>)
+                     } 
         },true
       elif game.Player.CurrentWeapon.RequiresAmmunition then
+        // weapon needs ammo but we have none so switch to the knife
         let newWeaponIndex = game.Player.Weapons |> List.findIndex(fun w -> not w.RequiresAmmunition) 
         let newWeapon = game.Player.Weapons.[newWeaponIndex]
         let updatedWeapon = { newWeapon with CurrentFrame = 1 }
@@ -194,8 +197,8 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
         { game with
             IsFiring = true
             TimeToNextWeaponFrame = Some weaponAnimationFrameTime
-            Player = { (updatedWeapon |> updatePlayerWithWeapon) with
-                        Ammunition = game.Player.Ammunition - 1<bullets>
+            Player = { (updatedWeapon |> updatePlayerWithWeapon newWeaponIndex) with
+                        Ammunition = game.Player.Ammunition
                         CurrentWeaponIndex = newWeaponIndex
                      } 
         },true
@@ -208,13 +211,13 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
           let updatedWeapon = { currentWeapon with CurrentFrame = currentWeapon.CurrentFrame+1 }
           { game with
               TimeToNextWeaponFrame = Some (weaponAnimationFrameTime + newTimeRemaining)
-              Player = updatedWeapon |> updatePlayerWithWeapon
+              Player = updatedWeapon |> updatePlayerWithWeapon game.Player.CurrentWeaponIndex
           },false
         else
           let updatedWeapon = { currentWeapon with CurrentFrame = 0 }
           { game with
                 IsFiring = false
-                Player = updatedWeapon |> updatePlayerWithWeapon
+                Player = updatedWeapon |> updatePlayerWithWeapon game.Player.CurrentWeaponIndex
                 TimeToNextWeaponFrame = None
             },false
       else
@@ -280,7 +283,7 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
                     State = EnemyStateType.Die
                     CurrentAnimationFrame = 0
                     TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState EnemyStateType.Die
-                    BasicGameObject = { e.BasicGameObject with CollidesWithBullets = false }
+                    BasicGameObject = { e.BasicGameObject with CollidesWithBullets = false ; Blocking = false }
                 } |> GameObject.Enemy
                 ,
                 match e.EnemyType with
@@ -381,8 +384,9 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
     let _,updatedGame,updatedGameObjects =
       game.GameObjects
       |> List.fold(fun (i,innerGame,gameObjects) go ->
+        // TODO: Not sure we need the "newObjects" part of the fold anymore, could do it directly on the game
         let updatedGame,updatedGameObject,newObjects =
-          (game,go,[])
+          (innerGame,go,[])
           |> resetNeedToFire 
           |> updateEnemyBasedOnPlayerFiring beganFiringSequenceOnFrame i
           |> updateEnemyAnimation frameTime        
@@ -546,6 +550,12 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
     else
       game
       
+  let selectWeapon index game =
+    if game.Player.Weapons.Length > index then
+      { game with Player = { game.Player with CurrentWeaponIndex = index } }
+    else
+      game
+      
   match game.PixelDissolver with
   | Some _ ->
     game
@@ -558,6 +568,10 @@ let updateFrame game frameTime createPixelDissolver (renderingResult:WallRenderi
     |> (fun g -> match g with | IsActive ControlState.StrafingLeft -> strafe -movementSpeed g | _ -> g)
     |> (fun g -> match g with | IsActive ControlState.StrafingRight -> strafe movementSpeed g | _ -> g)
     |> (fun g -> match g with | IsActive ControlState.TurningLeft | IsActive ControlState.TurningRight -> rotate g | _ -> g)
+    |> (fun g -> match g with | IsActive ControlState.Weapon0 -> selectWeapon 0 g | _ -> g)
+    |> (fun g -> match g with | IsActive ControlState.Weapon1 -> selectWeapon 1 g | _ -> g)
+    |> (fun g -> match g with | IsActive ControlState.Weapon2 -> selectWeapon 2 g | _ -> g)
+    |> (fun g -> match g with | IsActive ControlState.Weapon3 -> selectWeapon 3 g | _ -> g)
     // firing must happen before we move objects as this will cause a sort by depth and we rely on the object index for a
     // potential hit that was recorded during scene rendering
     |> handleFiring

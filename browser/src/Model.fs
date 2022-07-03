@@ -147,6 +147,9 @@ type Wall =
   { NorthSouthTextureIndex: int
     EastWestTextureIndex: int
   }
+  member this.IsExit =
+    this.NorthSouthTextureIndex = 40 || this.EastWestTextureIndex = 40 ||
+    this.NorthSouthTextureIndex = 41 || this.EastWestTextureIndex = 41
   
 [<RequireQualifiedAccess>]
 type SoundEffect =
@@ -271,6 +274,7 @@ type BasicGameObject =
     AmmoRestored: int<bullets>
     LivesRestored: int<life>
     Score: int<points>
+    Blocking: bool
   }
   member this.MapPosition = (int this.Position.vX),(int this.Position.vY)
 
@@ -368,15 +372,19 @@ type GameObject =
     | GameObject.Enemy e -> { e with BasicGameObject = go } |> GameObject.Enemy
   
 type ControlState =
-  | None          = 0b00000000
-  | Forward       = 0b00000001
-  | TurningLeft   = 0b00000010
-  | TurningRight  = 0b00000100
-  | StrafingLeft  = 0b00001000
-  | StrafingRight = 0b00010000
-  | Backward      = 0b00100000
-  | Fire          = 0b01000000
-  | Action        = 0b10000000
+  | None          = 0b000000000000
+  | Forward       = 0b000000000001
+  | TurningLeft   = 0b000000000010
+  | TurningRight  = 0b000000000100
+  | StrafingLeft  = 0b000000001000
+  | StrafingRight = 0b000000010000
+  | Backward      = 0b000000100000
+  | Fire          = 0b000001000000
+  | Action        = 0b000010000000
+  | Weapon0       = 0b000100000000
+  | Weapon1       = 0b001000000000
+  | Weapon2       = 0b010000000000
+  | Weapon3       = 0b100000000000
 
 type Player =
   { Score: int<points>

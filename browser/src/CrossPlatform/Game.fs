@@ -37,26 +37,56 @@ let private initialGameState =
   }
 
 let init statusBarScale initScene = async {
-  let! rawMap = Map.loadRawMap 0 //Map.loadLevel 0  
+  let startingLevel = 0
+  
   let! graphics = GraphicsCommon.loadGraphics ()
   let! sprites = Graphics.loadSprites ()
   let! statusBarTextures = Graphics.loadStatusBar statusBarScale
   
+  let! rawMap0 = Map.loadRawMap 0
+  let! rawMap1 = Map.loadRawMap 1
+  let! rawMap2 = Map.loadRawMap 2
+  let! rawMap3 = Map.loadRawMap 3
+  let! rawMap4 = Map.loadRawMap 4
+  let! rawMap5 = Map.loadRawMap 5
+  let! rawMap6 = Map.loadRawMap 6
+  let! rawMap7 = Map.loadRawMap 7
+  let! rawMap8 = Map.loadRawMap 8
+  let! rawMap9 = Map.loadRawMap 9 // secret level!
+  let levels = [
+    rawMap0 ; rawMap1 ; rawMap2 ; rawMap3 ; rawMap4
+    rawMap5 ; rawMap6 ; rawMap7 ; rawMap8 ; rawMap9
+  ]
+  
   let drawScene,viewportWidth,viewportHeight = initScene ()
+  
+  let nextLevel (inputGame:Game) =
+    // TODO: stop the player going past the last level - we need to do the victory thing
+    let newLevel = Map.loadLevelFromRawMap DifficultyLevel.IAmDeathIncarnate levels.[inputGame.Level + 1]
+    { inputGame with
+        Map = newLevel.Map
+        Areas = newLevel.Areas
+        Level = inputGame.Level + 1
+        CompositeAreas = {0..newLevel.NumberOfAreas-1} |> Seq.map(fun i -> { Area = i ; ConnectedTo = [i] |> Set.ofList }) |> Seq.toList 
+        Camera = newLevel.PlayerStartingPosition
+        GameObjects = newLevel.GameObjects
+        Doors = newLevel.Doors
+    }
   
   let gameLoop (game:Game) (frameTime:float<ms>) =
     let updatedGameState =
       drawScene statusBarTextures graphics sprites game
-      |> updateFrame game frameTime (fun _ -> Dissolver.create viewportWidth viewportHeight 2)
+      |> updateFrame game nextLevel frameTime (fun _ -> Dissolver.create viewportWidth viewportHeight 2)
     updatedGameState
   let updateControlState game controlState =
     { game with ControlState = game.ControlState ^^^ controlState }
   
-  let level = Map.loadLevelFromRawMap DifficultyLevel.IAmDeathIncarnate rawMap
+  let level = Map.loadLevelFromRawMap DifficultyLevel.IAmDeathIncarnate levels.[startingLevel]
   let resetLevel game player =
     { game with
         Map = level.Map
         Areas = level.Areas
+        Level = startingLevel
         CompositeAreas = {0..level.NumberOfAreas-1} |> Seq.map(fun i -> { Area = i ; ConnectedTo = [i] |> Set.ofList }) |> Seq.toList 
         Camera = level.PlayerStartingPosition
         GameObjects = level.GameObjects

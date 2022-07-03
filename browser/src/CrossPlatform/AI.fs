@@ -54,16 +54,7 @@ let canMove game (enemy:Enemy) (mapDirection:MapDirection) =
     let posX,posY = enemy.BasicGameObject.MapPosition
     let newX,newY = posX + deltaX, posY + deltaY
     
-    //Utils.log $"posx: {posX}, posy: {posY}, newx: {newX}, newy: {newY}, dir: {mapDirection}"
-    
-    if newX < 0 || newX > 63 || newY < 0 || newY > 63 then
-      false
-    else
-      let cell = game.Map.[newY].[newX]
-      match cell with
-      | Cell.Wall _ ->
-        false
-      | _ -> true
+    Ray.canEnemyTraverse game (newX,newY)
   
 // Chasing occurs on whole map units and the state is re-evaluated when we have completed the move
 // we may adopt this approach for path too (we may need to to break the path to shoot)

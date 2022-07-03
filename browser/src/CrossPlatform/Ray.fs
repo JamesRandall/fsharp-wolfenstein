@@ -92,3 +92,30 @@ let isPointInTriangle p1 p2 p3 testPoint  =
     ((p2.vY - p3.vY)*(p1.vX - p3.vX) + (p3.vX - p2.vX)*(p1.vY - p3.vY))
   let c = 1. - a - b
   a >= 0. && a <= 1. && b >= 0. && b <= 1. && c >= 0. && c <= 1.
+  
+let canTraverse (game:Game) checkPlayer (mapX,mapY) =
+  if mapX < 0 || mapX > 63 || mapY < 0 || mapY > 63 then
+    false
+  elif checkPlayer && (mapX,mapY) = game.PlayerMapPosition then
+    false
+  else
+    let cell = game.Map.[mapY].[mapX]
+    let canPassCell =
+      match cell with
+      | Cell.Door doorIndex ->
+        let doorState = game.Doors.[doorIndex]
+        match doorState.Status with
+        | DoorStatus.Open -> true
+        | _ -> false
+      | Cell.Wall _ -> false
+      | _ -> true
+    if canPassCell then
+      game.GameObjects
+      |> List.tryFind(fun go -> go.BasicGameObject.MapPosition = (mapX,mapY) && go.BasicGameObject.Blocking)
+      |> Option.isNone
+    else
+      false
+      
+let canPlayerTraverse game pos = canTraverse game false pos
+
+let canEnemyTraverse game pos = canTraverse game true pos

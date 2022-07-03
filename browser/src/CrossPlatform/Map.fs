@@ -335,6 +335,12 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
     if value-baseValue < 4us then EnemyStateType.Standing else EnemyStateType.Path PathState.Empty
   
   let gameObjects =
+    // not sure if vines are blocking - they are 0x46
+    let blockingObjects = [
+      0x19us ; 0x1Aus ; 0x1Eus ; 0x22us ; 0x23us ; 0x24us
+      0x26us ; 0x27us ; 0x28us ; 0x29us ; 0x3Bus
+      0x3Cus ; 0x44us ; 0x45us ; 0x46us ; 0x47us
+    ]
     let createEnemy spriteIndex spriteBlocks framesPerBlock deathSprites hurtSpriteIndex attackingSprites score enemyType x y directionIntOption startingState =
       let position = { vX = float raw.MapSize - float x - 0.5 ; vY = float y + 0.5 }
       { EnemyType = enemyType
@@ -349,6 +355,7 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
           Score = score
           AmmoRestored = 0<bullets>
           LivesRestored = 0<life>
+          Blocking = true
         }
         Direction = directionIntOption |> startingMapDirectionFromInt
         //DirectionVector = directionIntOption |> Option.map startingDirectionVectorFromInt
@@ -382,6 +389,8 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
     let withScore pts go = { go with Score = pts ; Pickupable = true }
     let withBullets bullets go = { go with AmmoRestored = bullets ; Pickupable = true}
     let withExtraLife go = { go with LivesRestored = 1<life> ; Pickupable = true }
+    let withBlockingIfOfBlockingType value bo =
+      if blockingObjects |> List.contains value then { bo with Blocking = true } else bo
     
     raw.Plane1
     |> traverseMap (fun colIndex rowIndex value ->
@@ -400,6 +409,7 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
                 Score = 0<points>
                 AmmoRestored = 0<bullets>
                 LivesRestored = 0<life>
+                Blocking = false
               }
             if value = 0x1dus then
               basicGameObject |> withHitPoints 4<hp>  // dog food
@@ -420,7 +430,7 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
             elif value = 0x38us then
               basicGameObject |> withExtraLife // extra life
             else
-              basicGameObject
+              basicGameObject |> withBlockingIfOfBlockingType value
           )
           |> GameObject.Static |> Some
         elif value >= 108us then
@@ -451,7 +461,10 @@ let loadLevelFromRawMap difficulty (raw:RawMap) =
                 
               elif 124us = value then
                 let deadGuard = guardEnemy colIndex rowIndex (Some ((value-108us) % 4us)) EnemyStateType.Dead 
-                { deadGuard with CurrentAnimationFrame = deadGuard.DeathSpriteIndexes.Length-1 } |> Some
+                { deadGuard with
+                    CurrentAnimationFrame = deadGuard.DeathSpriteIndexes.Length-1
+                    BasicGameObject = { deadGuard.BasicGameObject with Blocking = false }
+                } |> Some
                 
               elif 138us <= value && value < 142us then
                 dogEnemy colIndex rowIndex (Some ((value-138us) % 4us)) (EnemyStateType.Path PathState.Empty) |> Some
@@ -540,6 +553,7 @@ let createAmmo playerPosition (mapX,mapY) =
     Score = 0<points>
     AmmoRestored = 4<bullets>
     LivesRestored = 0<life>
+    Blocking = false
   }
   |> GameObject.Static
   

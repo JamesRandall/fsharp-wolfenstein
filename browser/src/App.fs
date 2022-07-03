@@ -41,6 +41,7 @@ setCanvasSize ()
 
 
 let private controlStateFromKeyCode keyCode =
+  Utils.log keyCode
   match keyCode with
   | "ArrowUp" -> ControlState.Forward
   | "ArrowLeft" -> ControlState.TurningLeft
@@ -50,6 +51,10 @@ let private controlStateFromKeyCode keyCode =
   | "ArrowDown" -> ControlState.Backward
   | "ControlLeft" -> ControlState.Fire
   | "Space" -> ControlState.Action
+  | "Digit1" -> ControlState.Weapon0
+  | "Digit2" -> ControlState.Weapon1
+  | "Digit3" -> ControlState.Weapon2
+  | "Digit4" -> ControlState.Weapon3
   | _ -> ControlState.None
 
 
