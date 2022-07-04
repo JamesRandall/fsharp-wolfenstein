@@ -2,7 +2,8 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net7.0</TargetFramework>
+        <!-- Set target framework to .NET 7 to publish with NativeAOT -->
+        <TargetFramework>net6.0</TargetFramework>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <PublishAot Condition="'$(TargetFramework)' == 'net7.0'">true</PublishAot>
         <IlcTrimMetadata>true</IlcTrimMetadata>
@@ -11,7 +12,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Content Include="FSharp.Core.rd.xml" />
         <Compile Include="OpenGl\BufferObject.fs" />
         <Compile Include="OpenGl\VertexArrayObject.fs" />
         <Compile Include="OpenGl\Shader.fs" />
