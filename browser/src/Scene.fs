@@ -23,9 +23,8 @@ let private getViewportPosition (context:CanvasRenderingContext2D) =
   let statusBarHeight = 35. * zoom * viewportZoom
   let statusBarViewportSpace = round (statusBarHeight / 5.)
   let totalHeight = totalZoomedHeight + statusBarHeight + statusBarViewportSpace
-  
-  let top = max left (context.canvas.height/2. - totalHeight/2.)
-  
+  let topBasedOnHeight = (context.canvas.height/2. - totalHeight/2.) 
+  let top = topBasedOnHeight
   
   left,top,(top+totalZoomedHeight+statusBarViewportSpace),totalZoomedWidth,totalZoomedHeight
 
@@ -92,24 +91,22 @@ let draw (context:CanvasRenderingContext2D) (bufferContext:CanvasRenderingContex
     game
     |> Walls.draw viewportWidth viewportHeight setPixel getTextureStripOffset getTextureColor
     |> Objects.draw viewportWidth viewportHeight getPixel setPixel isTransparent getSpriteOffsets game sprites
+  Weapons.drawPlayerWeapon bufferContext.canvas.width bufferContext.canvas.height getPixel setPixel isTransparent game
+  Dissolve.render setPixel game
   drawFrame context
+  
   let left, top, statusBarTop, _, _ = getViewportPosition context
-    
+  
   let imageData = Graphics.createImageData outputTexture.ClampedData outputTexture.Width outputTexture.Height
   bufferContext.putImageData(imageData, 0., 0.)
-  // we draw the weapon directly on the buffer context - it doesn't have any relation to other objects in the frame
-  // and by rendering it here we can take advantage of the speed of drawImage (compared to pixel by pixel manipulation)
-  // and as its big (height of the context) this is quite an optimisation
-  let drawImage (context:CanvasRenderingContext2D) texture x y width height =
-    context.drawImage ((U3.Case2 (Graphics.canvasFromTexture texture)), x, y, width, height)
-    //((U3.Case2 (Graphics.canvasFromTexture weapon.CurrentSprite)), xPos, 0., height, height)
-  Weapons.drawPlayerWeapon bufferContext.canvas.width bufferContext.canvas.height (drawImage bufferContext) game
   context.drawImage ((U3.Case2 bufferContext.canvas), left, top, viewportWidth*zoom, viewportHeight*zoom)
   
   context.save()
   context.translate (left, statusBarTop)
   let drawStatusBarImage (context:CanvasRenderingContext2D) texture x y =
     let totalZoom = zoom * viewportZoom
+    let drawImage (context:CanvasRenderingContext2D) texture x y width height =
+      context.drawImage ((U3.Case2 (Graphics.canvasFromTexture texture)), x, y, width, height)
     drawImage context texture (x * totalZoom) (y * totalZoom) (float texture.Width * totalZoom) (float texture.Height * totalZoom)
   Render.StatusBar.drawStatusBar statusBarGraphics (drawStatusBarImage context) game
   context.restore()
@@ -121,7 +118,7 @@ let draw (context:CanvasRenderingContext2D) (bufferContext:CanvasRenderingContex
   | _ -> ()
   
   let endTime = performance.now()
-  Primitives.fillText context $"Render length: %.0f{endTime-startTime}ms" left (top / 2. + 8.)
+  //Primitives.fillText context $"Render length: %.0f{endTime-startTime}ms" left (top / 2. + 8.)
   
   context.restore ()
   

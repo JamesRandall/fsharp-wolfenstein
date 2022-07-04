@@ -11,7 +11,7 @@ let inFieldOfView game (enemy:Enemy) =
   // If an enemy has a direction then it also has a field of view in which the player can be seen
   match enemy.DirectionVector with
   | Some directionVector ->
-    let fieldOfViewAngle = (45. * System.Math.PI / 180.) * 1.<radians>
+    let fieldOfViewAngle = (60. * System.Math.PI / 180.) * 1.<radians>
     let boundingVectorA = directionVector.Normalize().Rotate -fieldOfViewAngle
     let boundingVectorB = directionVector.Normalize().Rotate fieldOfViewAngle
     let playerTestPoint =
@@ -54,16 +54,7 @@ let canMove game (enemy:Enemy) (mapDirection:MapDirection) =
     let posX,posY = enemy.BasicGameObject.MapPosition
     let newX,newY = posX + deltaX, posY + deltaY
     
-    //Utils.log $"posx: {posX}, posy: {posY}, newx: {newX}, newy: {newY}, dir: {mapDirection}"
-    
-    if newX < 0 || newX > 63 || newY < 0 || newY > 63 then
-      false
-    else
-      let cell = game.Map.[newY].[newX]
-      match cell with
-      | Cell.Wall _ ->
-        false
-      | _ -> true
+    Ray.canEnemyTraverse game (newX,newY)
   
 // Chasing occurs on whole map units and the state is re-evaluated when we have completed the move
 // we may adopt this approach for path too (we may need to to break the path to shoot)
@@ -226,27 +217,40 @@ let createAttackState game enemy =
   }
   
 let createChaseState canSeePlayer (game:Game) enemy =
-  if canSeePlayer then
-    let enemyX, enemyY = enemy.BasicGameObject.MapPosition
-    let playerX, playerY = game.PlayerMapPosition
-    let absDeltaX = abs (enemyX - playerX)
-    let absDeltaY = abs (enemyY - playerY)
-    let distance = if absDeltaX > absDeltaY then absDeltaX else absDeltaY
-    let shouldShoot =
-      // original source: if (!dist || (dist==1 && ob->distance<0x4000) )
-      // not yet sure what that second part is about
-      if enemy.State = EnemyStateType.Attack then
-        false // attack never follows attack
-      elif distance = 0 then 
-        true
+  let updatedEnemy =
+    if canSeePlayer then
+      match enemy.State with
+      | EnemyStateType.Ambushing
+      | EnemyStateType.Standing
+      | EnemyStateType.Path _ ->
+        Audio.playSoundEffect game enemy.BasicGameObject.Position SoundEffect.UttGuards
+      | _ -> ()
+      
+      let enemyX, enemyY = enemy.BasicGameObject.MapPosition
+      let playerX, playerY = game.PlayerMapPosition
+      let absDeltaX = abs (enemyX - playerX)
+      let absDeltaY = abs (enemyY - playerY)
+      let distance = if absDeltaX > absDeltaY then absDeltaX else absDeltaY
+      let shouldShoot =
+        Utils.log $"Shoot Distance: {distance}"
+        // original source: if (!dist || (dist==1 && ob->distance<0x4000) )
+        // not yet sure what that second part is about
+        if distance <= 1 then
+          true 
+        //elif enemy.State = EnemyStateType.Attack then // attack never follows attack 
+          //false
+        elif enemy.State = EnemyStateType.Attack then // attack after attack has a lower chance 
+          randomGenerator.Next(255) < 255 / distance
+        else
+          randomGenerator.Next(255) < 255 / (max 1 (distance/3*2))
+      if shouldShoot then
+        createAttackState game enemy
       else
-        randomGenerator.Next(255) < 255 / distance
-    if shouldShoot then
-      createAttackState game enemy
+        setupChaseStateWithDodge game enemy
     else
-      setupChaseStateWithDodge game enemy
-  else
-    setupChaseState game enemy
+      setupChaseState game enemy
+  if updatedEnemy.MoveToChaseRequired then Audio.playSoundEffect game enemy.BasicGameObject.Position SoundEffect.UttGuards
+  { updatedEnemy with MoveToChaseRequired = false }
   
 let getNextState canSeePlayer game enemy =
   match enemy.State, canSeePlayer with
@@ -255,12 +259,6 @@ let getNextState canSeePlayer game enemy =
   //| EnemyStateType.Path, true // comment this line out to test patrolling without it being interrupted
   | EnemyStateType.Standing, true
   | EnemyStateType.Ambushing, true ->
-    (*(
-      [
-        fun () -> EnemyStateType.Attack
-        fun () -> EnemyStateType.Chase (0,0)
-      ] |> List.random
-    ) ()*)
     createChaseState canSeePlayer game enemy
   | EnemyStateType.Attack, _ ->
     // the frame time can only drop below zero when we have gone past the last frame and so we use
@@ -289,8 +287,8 @@ let getStateString state =
 let preProcess canSeePlayer (enemy,game) =
   // preprocess looks for state changes based on the current game world state
   let newEnemy = enemy |> getNextState canSeePlayer game
-  if newEnemy.State <> enemy.State then
-    Utils.log $"Enemy at {enemy.BasicGameObject.Position.vX}, {enemy.BasicGameObject.Position.vY} moving from {getStateString enemy.State} to {getStateString newEnemy.State}"
+  //if newEnemy.State <> enemy.State then
+  //  Utils.log $"Enemy at {enemy.BasicGameObject.Position.vX}, {enemy.BasicGameObject.Position.vY} moving from {getStateString enemy.State} to {getStateString newEnemy.State}"
   (newEnemy,game)
     
 // this is loosely based on T_Shoot in WL_ACT2.C
@@ -301,6 +299,7 @@ let firingOnPlayer canSeePlayer (enemy:Enemy,game:Game)  =
   // for sound propagation in the AI.
   // if (!areabyplayer[ob->areanumber])
   //	return;
+  
   let damage =
     if enemy.FireAtPlayerRequired && canSeePlayer then
       let enemyX,enemyY = enemy.BasicGameObject.MapPosition
@@ -334,7 +333,6 @@ let firingOnPlayer canSeePlayer (enemy:Enemy,game:Game)  =
     else
       0
       
-  if damage > 0 then Utils.log $"Damage: {damage}"
   let maximumPossibleDamage = 64.
       
   enemy,
@@ -350,8 +348,15 @@ let firingOnPlayer canSeePlayer (enemy:Enemy,game:Game)  =
 let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) (enemy,game) =
   // updates the enemy based on its state
   match enemy.State,enemy.DirectionVector with
+  | EnemyStateType.Pain previousState,_ ->
+    if enemy.TimeUntilNextAnimationFrame < 0.<ms> then
+      { enemy with TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState previousState ; State = previousState }
+      ,
+      game
+    else
+      enemy, game
   | EnemyStateType.Chase (targetMapX, targetMapY), Some direction ->
-    let enemyVelocityUnitsPerSecond = 1.
+    let enemyVelocityUnitsPerSecond = enemy.ChaseSpeed
     let targetPosition = { vX = float targetMapX + 0.5 ; vY = float targetMapY + 0.5 }
     let distanceToTarget = targetPosition - enemy.BasicGameObject.Position
     let frameRateBasedDelta = (direction * (frameTime / 1000.<ms> * enemyVelocityUnitsPerSecond))
@@ -366,73 +371,49 @@ let updateBasedOnCurrentState canSeePlayer (frameTime:float<ms>) (enemy,game) =
       ({ enemy with BasicGameObject = { enemy.BasicGameObject with Position = targetPosition } }
       |> createChaseState canSeePlayer game),game
     
-  | EnemyStateType.Path, Some direction ->
-    let enemyVelocityUnitsPerSecond = 0.5
-    // A character entering a turning point causes it to turn in the direction the turning point indicates.
-    //
-    // Fast moving characters and/or low framerates could cause a character to essentially "skip" over a square and
-    // so rather than check the new position on the map for a turning point we cast a ray between the previous position
-    // and the new position looking for a hit of a turning point.
-    //
-    // As a fail safe if we don't hit a turning point we simply reverse the direction
-    
-    // we need to limit velocity to a single map unit at a time or we can skip a unit and fall off the map
-    let velocityBasedDelta = (direction * (frameTime / 1000.<ms> * enemyVelocityUnitsPerSecond)).LimitToMapUnit()
-    let newPosition = enemy.BasicGameObject.Position + velocityBasedDelta
-    
-    let maxDistanceToCheck = (newPosition - enemy.BasicGameObject.Position).Abs()
-    
-    let castRay () =
-      let setup () = true, enemy.BasicGameObject.Position.vX, enemy.BasicGameObject.Position.vY, direction
-      let terminator (isHit, currentRayDistanceX, currentRayDistanceY, mapX, mapY, _) =
-        (not isHit) &&
-        (mapX >= 0 && mapX < game.Map.[0].Length && mapY >= 0 && mapY < game.Map.Length) &&
-        (abs currentRayDistanceX < maxDistanceToCheck.vX || abs currentRayDistanceY < maxDistanceToCheck.vY)
-      let isHit, _, _, _, _, hitMapX, hitMapY, _ = Ray.cast setup terminator game
-      let isWallHit = match game.Map.[hitMapY].[hitMapX] with | Cell.Wall _ -> true | _ -> false
-      isHit, isWallHit, hitMapX, hitMapY
-      
-    let isHit, isWallHit, hitMapX, hitMapY =
-      if newPosition.vY < 0. || newPosition.vY > 63. || newPosition.vX < 0. || newPosition.vX > 63. then
-        Utils.log "oops"
-      match game.Map.[int newPosition.vY].[int newPosition.vX] with
-      | Cell.TurningPoint tpDirection ->
-        if tpDirection = enemy.Direction then
-          false, false, int newPosition.vX, int newPosition.vY
-        else
-          true, false, int newPosition.vX, int newPosition.vY
-      | _ -> castRay ()
-    
-    // if we actually change direction then we must ensure the change of position is centered on the tile - otherwise
-    // we will find that gradually things will move into "off" positions and move in strange ways
-    let newDirection,finalPosition =
-      match isHit, isWallHit with
-      | true, false ->
-        // we only actually turn on a turning point if we have moved past the center of the cell / turning point
-        // and an easy way to figure that out is by comparing the distance to the new position based on the velocity
-        // with the distance to the turning point center - if the former is greater or equal to the latter then we
-        // have moved over the point
-        let turningPointPosition = { vX = float hitMapX + 0.5 ; vY = float hitMapY + 0.5 }
-        let existingDistanceToTurningPoint = (enemy.BasicGameObject.Position - turningPointPosition).Magnitude
-        let distanceToNewPosition = (newPosition - enemy.BasicGameObject.Position).Magnitude
-        if distanceToNewPosition >= existingDistanceToTurningPoint then       
-          (match game.Map.[hitMapY].[hitMapX] with
-          | Cell.TurningPoint newDirection -> newDirection
-          | Cell.Door _ -> enemy.Direction // if we hit a door keep walking, doors get opened by any characters heading towards them
-          | _ -> enemy.Direction.Reverse())
-          ,{ vX = float hitMapX + 0.5 ; vY = float hitMapY + 0.5 }
-        else
-          enemy.Direction,newPosition
-      | true, true -> enemy.Direction.Reverse(),{ vX = float hitMapX + 0.5 ; vY = float hitMapY + 0.5 }
-      | _ -> enemy.Direction,newPosition
-        
-    { enemy with
-        BasicGameObject = { enemy.BasicGameObject with Position = finalPosition }
-        Direction = newDirection
-    },game
+  | EnemyStateType.Path pathState, Some direction ->
+    let enemyVelocityUnitsPerSecond = enemy.PatrolSpeed
+    let targetMapX = pathState.TargetX
+    let targetMapY = pathState.TargetY
+    let targetPosition = { vX = float targetMapX + 0.5 ; vY = float targetMapY + 0.5 }
+    let distanceToTarget = targetPosition - enemy.BasicGameObject.Position
+    let frameRateBasedDelta = (direction * (frameTime / 1000.<ms> * enemyVelocityUnitsPerSecond))
+    // if we have further to travel than we need to update this frame based on our velocity then
+    // we continue to move - alternatively if our velocity would take us past the target then we
+    // re-evaluate our path state 
+    if distanceToTarget.Magnitude > frameRateBasedDelta.Magnitude then
+      let newPosition = enemy.BasicGameObject.Position + frameRateBasedDelta
+      { enemy with BasicGameObject = { enemy.BasicGameObject with Position = newPosition } },game
+    else
+      // we re-evaluate our state
+      if canSeePlayer || pathState.ChaseOnTargetReached || enemy.MoveToChaseRequired then
+        // if the patrolling guard can see the player then we break out into chase
+        (createChaseState canSeePlayer game enemy),game        
+      else
+        // otherwise move to the next cell on our path
+        let newDirection =
+          match game.Map.[targetMapY].[targetMapX] with
+          | Cell.TurningPoint tpDirection -> tpDirection
+          | _ -> enemy.Direction
+        let newDirectionX, newDirectionY = newDirection.ToDelta()
+        let newTargetX = targetMapX + newDirectionX
+        let newTargetY = targetMapY + newDirectionY
+        let turnedEnemy = 
+          { enemy with
+              BasicGameObject = { enemy.BasicGameObject with Position = targetPosition }
+              State = (EnemyStateType.Path { pathState with TargetX = newTargetX ; TargetY = newTargetY })
+              Direction = newDirection
+          }
+        let canNowSeePlayer = turnedEnemy |> isPlayerVisibleToEnemy game
+        (if canNowSeePlayer then (createChaseState canSeePlayer game turnedEnemy) else turnedEnemy),game
+  | EnemyStateType.Standing, _ ->
+    if enemy.MoveToChaseRequired then
+      (createChaseState canSeePlayer game enemy),game
+    else
+      enemy,game
   | _ -> enemy,game
     
-let applyAi frameTime game gameObject =
+let applyAi frameTime (game,gameObject,newObjects) =
   match gameObject with
   | GameObject.Enemy enemy ->
     if enemy.IsAlive then
@@ -442,9 +423,9 @@ let applyAi frameTime game gameObject =
         |> preProcess canSeePlayer
         |> updateBasedOnCurrentState canSeePlayer frameTime
         |> firingOnPlayer canSeePlayer
-      updatedEnemy |> GameObject.Enemy, updatedGame
+      updatedGame,updatedEnemy |> GameObject.Enemy,newObjects
     else
-      gameObject,game
-  | _ -> gameObject,game
+      game,gameObject,newObjects
+  | _ -> game,gameObject,newObjects
   
   

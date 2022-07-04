@@ -16,6 +16,7 @@
     <Compile Include="CrossPlatform\Compression.fs" />
     <Compile Include="CrossPlatform\Map.fs" />
     <Compile Include="CrossPlatform\AI.fs" />
+    <Compile Include="CrossPlatform\Dissolver.fs" />
     <Compile Include="CrossPlatform\Update.fs" />
     <Compile Include="CrossPlatform\Render.fs" />
     <Compile Include="CrossPlatform\Game.fs" />

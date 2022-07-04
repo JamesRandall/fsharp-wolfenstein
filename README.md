@@ -133,6 +133,13 @@ Wolfenstein ran at 320x200.
 The actual 3D viewport max size is 304x152 - the viewport is surrounded by a 1 pixel black border
 Their is a 3 pixel border teal border at the top of the viewport above the black border and a 7 pixel border to the left and right of that black border.
 
+### Sprites
+
+To generate the sprites use Slade to open the VSWAP.WL1 or VSWAP.WL6 file and select all the files beginning with SPR. Right click, graphics, export PNG.
+
+Then with ImageMagick:
+
+    mogrify -extent 64x64 -gravity center -background none SPR*.png
 
 ## License
 

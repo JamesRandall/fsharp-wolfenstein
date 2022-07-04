@@ -8,7 +8,7 @@ open App.Model
 open GraphicsCommon
 open App.PlatformModel
 
-let spriteColorIsTransparent color = color = 4287234202ul
+let spriteColorIsTransparent color = color = 4287234202ul || color = 0ul
 
 [<Emit("new ImageData($0,$1,$2)")>]
 let createImageData (data:Fable.Core.JS.Uint8ClampedArray) width height : ImageData = jsNative
@@ -40,7 +40,7 @@ let loadTexture name textureWidth textureHeight= async {
           )
         )
     with
-    | _ -> Image.Create(textureWidth, textureHeight, src = $"assets/sprites/s0.png")
+    | _ -> Image.Create(textureWidth, textureHeight, src = $"assets/sprites/SPR00000.png")
   let canvas = window.document.createElement("canvas") :?> Browser.Types.HTMLCanvasElement
   canvas.width <- image.width
   canvas.height <- image.height
@@ -75,8 +75,8 @@ let loadTextureSet nameFormatter fallbackName textureWidth textureHeight checkSh
           0        
       try
         Image.Create(
-          textureWidth,
-          textureHeight,
+          //textureWidth,
+          //textureHeight,
           src = nameFormatter spriteFileIndex,
           onerror =
             (fun _ ->
@@ -96,9 +96,9 @@ let loadTextureSet nameFormatter fallbackName textureWidth textureHeight checkSh
       with
       | _ -> Image.Create(textureWidth, textureHeight, src = fallbackName)
     let canvas = window.document.createElement("canvas") :?> Browser.Types.HTMLCanvasElement
-    canvas.width <- image.width
-    canvas.height <- image.height
-    image.onload <- (fun _ ->      
+    image.onload <- (fun _ ->
+      canvas.width <- image.width
+      canvas.height <- image.height 
       let context = canvas.getContext_2d()
       context.drawImage(Fable.Core.U3.Case1 image, 0., 0., image.width, image.height)
       let buffer = context.getImageData(0., 0., image.width, image.height).data.buffer
@@ -117,9 +117,16 @@ let loadTextureSet nameFormatter fallbackName textureWidth textureHeight checkSh
 
 let loadStatusBar _ = async {
   let! textureSet =
-    loadTextureSet (fun i -> sprintf "assets/statusBar/PIC%05d.png" (i+109)) $"assets/sprites/s0.png" 24. 32. false {0..23}
+    loadTextureSet (fun i -> sprintf "assets/statusBar/PIC%05d.png" (i+109)) $"assets/sprites/SPR00000.png" 24. 32. false {0..23}
   let! background =
     loadTexture "assets/statusBar/background.png" 304. 35.
+  let! statusBarNumbers =
+    loadTextureSet (fun i -> sprintf "assets/statusBar/font/%d.png" i) $"assets/sprites/SPR00000.png" 8. 16. false {0..9}
+  let! statusBarSpace = loadTexture "assets/statusBar/font/_.png" 8. 16.
+  let! knife = loadTexture "assets/statusBar/weapons/knife.png" 48. 24.
+  let! pistol = loadTexture "assets/statusBar/weapons/pistol.png" 48. 24.
+  let! machineGun = loadTexture "assets/statusBar/weapons/machineGun.png" 48. 24.
+  let! chainGun = loadTexture "assets/statusBar/weapons/chainGun.png" 48. 24.
   return
     { Background = background
       HealthFaces = [|
@@ -134,12 +141,14 @@ let loadStatusBar _ = async {
       Dead = textureSet.[21]
       GrinFace = textureSet.[22]
       GreyFace = textureSet.[23]
+      Font = [| statusBarSpace |] |> Array.append statusBarNumbers
+      Weapons = [| knife ; pistol ; machineGun ; chainGun |]
     }
 }
 
 let loadSprites () = async {
   return!
-    loadTextureSet (fun i -> $"assets/sprites/s{i}.png") $"assets/sprites/s0.png" 64. 64. true {0..435} 
+    loadTextureSet (fun i -> sprintf "assets/sprites/SPR%05d.png" i) $"assets/sprites/SPR00000.png" 64. 64. true {0..435} 
 }
   
 let canvasFromTexture (texture:Texture) =

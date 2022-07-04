@@ -40,13 +40,18 @@ let private getViewportPosition () =
 let emptyGame =
   { Map = []
     Areas = []
+    CompositeAreas = []
+    Level = 0
     Player = {
       Score = 0<points>
       Health = 100<hp>
       Radius = 0.5
       Weapons = [  ]
       CurrentWeaponIndex = -1
-      Ammunition = 99
+      Ammunition = 99<bullets>
+      Lives = 3<life>
+      CurrentFaceIndex = 0
+      TimeToFaceChangeMs = 0.<ms>
     }
     Camera = {
       Position = { vX = 12. ; vY = 6. }
@@ -60,6 +65,8 @@ let emptyGame =
     TimeToNextWeaponFrame = None
     Doors = []
     ViewportFilter = ViewportFilter.None
+    PixelDissolver = None
+    ResetLevel = (fun g _ -> g)
   }
 
 type RenderData =
@@ -114,15 +121,17 @@ let drawScene (screenImage:SixLabors.ImageSharp.Image<Rgba32>) (viewportImage:Si
     game
     |> Walls.draw viewportWidth viewportHeight setPixel getTextureStripOffset getTextureColor
     |> Objects.draw viewportWidth viewportHeight getPixel setPixel isTransparent getSpriteOffsets game sprites
+  Weapons.drawPlayerWeapon viewportWidth viewportHeight getPixel setPixel isTransparent game
+  Dissolve.render setPixel game
     
-  let drawImage texture x y _ _ =
+  (*let drawImage texture x y _ _ =
     viewportImage.Mutate(fun i ->
       DrawImageExtensions.DrawImage(i, texture.Image, Point(int x,int y), GraphicsOptions(Antialias=false)) |> ignore
-    )
+    )*)
     
     //bufferContext.drawImage ((U3.Case2 (Graphics.canvasFromTexture texture)), x, y, width, height)
     //((U3.Case2 (Graphics.canvasFromTexture weapon.CurrentSprite)), xPos, 0., height, height)
-  Weapons.drawPlayerWeapon viewportWidth viewportHeight drawImage game
+  
     
   stopwatch.Stop()
   
@@ -178,7 +187,7 @@ let drawScene (screenImage:SixLabors.ImageSharp.Image<Rgba32>) (viewportImage:Si
   firingHitGameObjectIndexOption
   
 let initScene (renderData:RenderData) _ =
-  (drawScene renderData.ScreenImage renderData.ViewportImage renderData.DiagnosticFont),renderData.ViewportImage.Width/int zoom,renderData.ViewportImage.Height
+  (drawScene renderData.ScreenImage renderData.ViewportImage renderData.DiagnosticFont),renderData.ViewportImage.Width,renderData.ViewportImage.Height
 
 let load (window:IWindow) _ =
   let gl = GL.GetApi(window)

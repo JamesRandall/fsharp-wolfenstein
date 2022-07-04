@@ -9,6 +9,69 @@ exception MapLoadException of string
 exception PlayerStartingPositionNotFoundException
 exception InvalidDoorException
 
+let private startingHitPoints difficultyLevel enemyType =
+  match difficultyLevel with
+  | DifficultyLevel.CanIPlayDaddy ->
+    match enemyType with 
+    | Guard -> 25<hp>
+    | Officer -> 50<hp>
+    | SS -> 100<hp>
+    | Dog -> 1<hp>
+    | Zombie -> 45<hp>
+    | FakeAdolf -> 200<hp>
+    | Adolf -> 800<hp>
+    | Fettgesicht -> 850<hp>
+    | Schabbs -> 850<hp>
+    | Gretel -> 850<hp>
+    | Hans -> 850<hp>
+    | Otto -> 850<hp>
+    | Ghost -> 25<hp>
+  | DifficultyLevel.DontHurtMe ->
+    match enemyType with 
+    | Guard -> 25<hp>
+    | Officer -> 50<hp>
+    | SS -> 100<hp>
+    | Dog -> 1<hp>
+    | Zombie -> 55<hp>
+    | FakeAdolf -> 300<hp>
+    | Adolf -> 950<hp>
+    | Fettgesicht -> 950<hp>
+    | Schabbs -> 950<hp>
+    | Gretel -> 850<hp>
+    | Hans -> 950<hp>
+    | Otto -> 950<hp>
+    | Ghost -> 25<hp>
+  | DifficultyLevel.BringEmOn ->
+    match enemyType with 
+    | Guard -> 25<hp>
+    | Officer -> 50<hp>
+    | SS -> 100<hp>
+    | Dog -> 1<hp>
+    | Zombie -> 55<hp>
+    | FakeAdolf -> 400<hp>
+    | Adolf -> 1050<hp>
+    | Fettgesicht -> 1050<hp>
+    | Schabbs -> 1550<hp>
+    | Gretel -> 1050<hp>
+    | Hans -> 1050<hp>
+    | Otto -> 1050<hp>
+    | Ghost -> 25<hp>
+  | DifficultyLevel.IAmDeathIncarnate ->
+    match enemyType with 
+    | Guard -> 25<hp>
+    | Officer -> 50<hp>
+    | SS -> 100<hp>
+    | Dog -> 1<hp>
+    | Zombie -> 65<hp>
+    | FakeAdolf -> 500<hp>
+    | Adolf -> 1200<hp>
+    | Fettgesicht -> 1200<hp>
+    | Schabbs -> 2400<hp>
+    | Gretel -> 1200<hp>
+    | Hans -> 1200<hp>
+    | Otto -> 1200<hp>
+    | Ghost -> 25<hp>
+
 let mapFromTextures source =
   source
   |> List.map(fun row ->
@@ -148,20 +211,22 @@ let calculateAreasFromMap map doors =
       let doorX,doorY = door.MapPosition
       match door.DoorDirection with
       | DoorDirection.NorthSouth ->
+        areas.[doorY].[doorX] <- areas.[doorY].[doorX-1]
         { door with
             AreaOne = areas.[doorY].[doorX-1]
             AreaTwo = areas.[doorY].[doorX+1]
         }
       | DoorDirection.EastWest ->
+        areas.[doorY].[doorX] <- areas.[doorY-1].[doorX]
         { door with
             AreaOne = areas.[doorY-1].[doorX]
             AreaTwo = areas.[doorY+1].[doorX]
         }
     )
   
-  areas, doorsPatchedWithAreas
+  areas, doorsPatchedWithAreas, currentArea
 
-let loadLevelFromRawMap (raw:RawMap) =          
+let loadLevelFromRawMap difficulty (raw:RawMap) =          
   let plane0,doors =
     {0..(raw.MapSize-1)}
     |> Seq.fold(fun (rows,outerDoors) rowIndex ->
@@ -267,10 +332,18 @@ let loadLevelFromRawMap (raw:RawMap) =
     | None -> MapDirection.None
   
   let standingOrMoving baseValue value =
-    if value-baseValue < 4us then EnemyStateType.Standing else EnemyStateType.Path
+    if value-baseValue < 4us then EnemyStateType.Standing else EnemyStateType.Path PathState.Empty
   
   let gameObjects =
-    let createEnemy spriteIndex spriteBlocks framesPerBlock deathSprites attackingSprites enemyType x y directionIntOption startingState =
+    // not sure if vines are blocking - they are 0x46
+    let blockingObjects = [
+      0x19us ; 0x1Aus ; 0x1Eus ; 0x22us ; 0x23us ; 0x24us
+      0x26us ; 0x27us ; 0x28us ; 0x29us ; 0x3Bus
+      0x3Cus ; 0x44us ; 0x45us ; 0x46us ; 0x47us
+    ]
+    let createEnemy spriteIndex spriteBlocks framesPerBlock deathSprites hurtSpriteIndex attackingSprites score patrolSpeed chaseSpeed enemyType x y directionIntOption startingState =
+      let rawMapCell = raw.Plane0.getUint16(2 * (x + 64 * y), true)
+      let isAmbushing = rawMapCell = 0x6Aus
       let position = { vX = float raw.MapSize - float x - 0.5 ; vY = float y + 0.5 }
       { EnemyType = enemyType
         BasicGameObject = {
@@ -279,10 +352,16 @@ let loadLevelFromRawMap (raw:RawMap) =
           PlayerRelativePosition =  position - playerStartingPosition.Position
           UnsquaredDistanceFromPlayer = position.UnsquaredDistanceFrom playerStartingPosition.Position
           CollidesWithBullets = true
+          Pickupable = false
+          HitpointsRestored = 0<hp>
+          Score = score
+          AmmoRestored = 0<bullets>
+          LivesRestored = 0<life>
+          Blocking = true
         }
         Direction = directionIntOption |> startingMapDirectionFromInt
         //DirectionVector = directionIntOption |> Option.map startingDirectionVectorFromInt
-        State = startingState
+        State = if isAmbushing then EnemyStateType.Ambushing else startingState
         DeathSpriteIndexes = deathSprites
         AttackSpriteIndexes = attackingSprites
         SpriteBlocks = spriteBlocks
@@ -291,36 +370,78 @@ let loadLevelFromRawMap (raw:RawMap) =
         TimeUntilNextAnimationFrame = Enemy.AnimationTimeForState startingState
         IsFirstAttack = true // will be set to false after first attack
         FireAtPlayerRequired = false
+        MoveToChaseRequired = false
+        HitPoints = startingHitPoints difficulty enemyType
+        HurtSpriteIndex = hurtSpriteIndex
+        PatrolSpeed = patrolSpeed
+        ChaseSpeed = chaseSpeed
       }
-    let guardEnemy = createEnemy 50 4 8 [90 ; 91 ; 92 ; 93 ; 95] [96 ; 97 ; 98] EnemyType.Guard
-    let dogEnemy = createEnemy 99 3 8 [131 ; 132 ; 133 ; 134] [135 ; 136 ; 137] EnemyType.Dog
-    let officerEnemy = createEnemy 138 4 8 [179 ; 180 ; 181 ; 183] [184 ; 185 ; 186] EnemyType.SS
-    let zombieEnemy = createEnemy 187 4 8 [228 ; 229 ; 230 ; 232 ; 233] [234 ; 235 ; 236 ; 237] EnemyType.Zombie
-    let leonEnemy = createEnemy 238 4 8 [279 ; 280 ; 281 ; 283 ; 284] [285 ; 286 ; 287] EnemyType.Officer
-    let hansEnemy = createEnemy 296 1 4 [304 ; 305 ; 306 ; 303] [300; 301 ; 302] EnemyType.Hans
-    let schabbsEnemy = createEnemy 307 1 4 [313 ; 314 ; 315 ; 316] [311 ; 312]  EnemyType.Schabbs
-    let fakeAdolfEnemy = createEnemy 321 1 4 [328 ; 329 ; 330 ; 331 ; 332 ; 333] [] EnemyType.FakeAdolf
+    let guardEnemy = createEnemy 50 4 8 [90 ; 91 ; 92 ; 93 ; 95] 94 [96 ; 97 ; 98] 100<points> 0.5 1. EnemyType.Guard
+    let dogEnemy = createEnemy 99 3 8 [131 ; 132 ; 133 ; 134] 131 [135 ; 136 ; 137] 200<points> 1. 1.5 EnemyType.Dog
+    let officerEnemy = createEnemy 138 4 8 [179 ; 180 ; 181 ; 183] 182 [184 ; 185 ; 186] 500<points> 0.5 1.25 EnemyType.SS
+    let zombieEnemy = createEnemy 187 4 8 [228 ; 229 ; 230 ; 232 ; 233] 231 [234 ; 235 ; 236 ; 237] 700<points> 0.5 1. EnemyType.Zombie
+    let leonEnemy = createEnemy 238 4 8 [279 ; 280 ; 281 ; 283 ; 284] 282 [285 ; 286 ; 287] 400<points> 0.5 1.25 EnemyType.Officer
+    let hansEnemy = createEnemy 296 1 4 [304 ; 305 ; 306 ; 303] 304 [300; 301 ; 302] 2000<points> 0.5 1. EnemyType.Hans
+    let schabbsEnemy = createEnemy 307 1 4 [313 ; 314 ; 315 ; 316] 313 [311 ; 312] 2000<points> 0.5 1. EnemyType.Schabbs
+    let fakeAdolfEnemy = createEnemy 321 1 4 [328 ; 329 ; 330 ; 331 ; 332 ; 333] 328 [325] 2000<points> 0.5 1. EnemyType.FakeAdolf
     // Note Hitler has two states - robot adolf and plain adolf, this only deals with plain hitler
-    let adolfEnemy = createEnemy 345 1 4 [353 ; 354 ; 355 ; 356 ; 357 ; 358 ; 359 ; 352] [349 ; 350 ; 351] EnemyType.Adolf 
-    let ottoEnemy = createEnemy 360 1 4 [366 ; 367 ; 368 ; 369] [364 ; 365] EnemyType.Otto
-    let gretelEnemy = createEnemy 385 1 4 [393 ; 394 ; 395 ; 392] [389 ; 390 ; 391] EnemyType.Gretel
-    let fettgesichtEnemy = createEnemy 396 1 4 [404 ; 405 ; 406 ; 407] [400 ; 401 ; 402 ; 403] EnemyType.Fettgesicht
+    let adolfEnemy = createEnemy 345 1 4 [353 ; 354 ; 355 ; 356 ; 357 ; 358 ; 359 ; 352] 353 [349 ; 350 ; 351] 5000<points> 0.5 1. EnemyType.Adolf 
+    let ottoEnemy = createEnemy 360 1 4 [366 ; 367 ; 368 ; 369] 366 [364 ; 365] 5000<points> 0.5 1. EnemyType.Otto
+    let gretelEnemy = createEnemy 385 1 4 [393 ; 394 ; 395 ; 392] 393 [389 ; 390 ; 391] 5000<points> 0.5 1. EnemyType.Gretel
+    let fettgesichtEnemy = createEnemy 396 1 4 [404 ; 405 ; 406 ; 407] 404 [400 ; 401 ; 402 ; 403] 5000<points> 0.5 1. EnemyType.Fettgesicht
+    
+    let withHitPoints pts go = { go with HitpointsRestored = pts ; Pickupable = true }
+    let withScore pts go = { go with Score = pts ; Pickupable = true }
+    let withBullets bullets go = { go with AmmoRestored = bullets ; Pickupable = true}
+    let withExtraLife go = { go with LivesRestored = 1<life> ; Pickupable = true }
+    let withBlockingIfOfBlockingType value bo =
+      if blockingObjects |> List.contains value then { bo with Blocking = true } else bo
     
     raw.Plane1
     |> traverseMap (fun colIndex rowIndex value ->
         // this requires some additional nuance as their are different kinds of collectible
         if value >= 23us && value <= 70us then
-          let position = { vX = float raw.MapSize - float colIndex - 0.5 ; vY = float rowIndex + 0.5 }
-          { Position = position
-            SpriteIndex = (int value) - 21
-            PlayerRelativePosition =  position - playerStartingPosition.Position
-            UnsquaredDistanceFromPlayer = position.UnsquaredDistanceFrom playerStartingPosition.Position
-            CollidesWithBullets = false
-          } |> GameObject.Treasure |> Some
+          (
+            let position = { vX = float raw.MapSize - float colIndex - 0.5 ; vY = float rowIndex + 0.5 }
+            let basicGameObject =
+              { Position = position
+                SpriteIndex = (int value) - 21
+                PlayerRelativePosition =  position - playerStartingPosition.Position
+                UnsquaredDistanceFromPlayer = position.UnsquaredDistanceFrom playerStartingPosition.Position
+                CollidesWithBullets = false
+                Pickupable = false
+                HitpointsRestored = 0<hp>
+                Score = 0<points>
+                AmmoRestored = 0<bullets>
+                LivesRestored = 0<life>
+                Blocking = false
+              }
+            if value = 0x1dus then
+              basicGameObject |> withHitPoints 4<hp>  // dog food
+            elif value = 0x2fus then
+              basicGameObject |> withHitPoints 10<hp>  // food
+            elif value = 0x30us then
+              basicGameObject |> withHitPoints 25<hp> // medpack
+            elif value = 0x31us then
+              basicGameObject |> withBullets 8<bullets> // ammo
+            elif value = 0x34us then
+              basicGameObject |> withScore 100<points> // cross
+            elif value = 0x35us then
+              basicGameObject |> withScore 500<points> // chalace
+            elif value = 0x36us then
+              basicGameObject |> withScore 1000<points> // jewels
+            elif value = 0x37us then
+              basicGameObject |> withScore 5000<points> // crown
+            elif value = 0x38us then
+              basicGameObject |> withExtraLife // extra life
+            else
+              basicGameObject |> withBlockingIfOfBlockingType value
+          )
+          |> GameObject.Static |> Some
         elif value >= 108us then
           // useful for debugging if you want a single enemy
           // find their location in maped42 and enter the co-ordinates below 
-          //if colIndex = 39 && rowIndex = 61 then
+          //if colIndex = 38 && rowIndex = 33 then
             let enemy =
               // guards
               // TODO: tidy this up, crying out for a pipeline
@@ -345,14 +466,17 @@ let loadLevelFromRawMap (raw:RawMap) =
                 
               elif 124us = value then
                 let deadGuard = guardEnemy colIndex rowIndex (Some ((value-108us) % 4us)) EnemyStateType.Dead 
-                { deadGuard with CurrentAnimationFrame = deadGuard.DeathSpriteIndexes.Length-1 } |> Some
+                { deadGuard with
+                    CurrentAnimationFrame = deadGuard.DeathSpriteIndexes.Length-1
+                    BasicGameObject = { deadGuard.BasicGameObject with Blocking = false }
+                } |> Some
                 
               elif 138us <= value && value < 142us then
-                dogEnemy colIndex rowIndex (Some ((value-138us) % 4us)) EnemyStateType.Path |> Some
+                dogEnemy colIndex rowIndex (Some ((value-138us) % 4us)) (EnemyStateType.Path PathState.Empty) |> Some
               elif 174us <= value && value < 178us then
-                dogEnemy colIndex rowIndex (Some ((value-174us) % 4us)) EnemyStateType.Path |> Some
+                dogEnemy colIndex rowIndex (Some ((value-174us) % 4us)) (EnemyStateType.Path PathState.Empty) |> Some
               elif 210us <= value && value < 214us then
-                dogEnemy colIndex rowIndex (Some ((value-210us) % 4us)) EnemyStateType.Path |> Some
+                dogEnemy colIndex rowIndex (Some ((value-210us) % 4us)) (EnemyStateType.Path PathState.Empty) |> Some
                 
               elif 216us <= value && value < 224us then
                 zombieEnemy colIndex rowIndex (Some ((value-216us) % 4us)) (value |> standingOrMoving 216us) |> Some
@@ -381,6 +505,23 @@ let loadLevelFromRawMap (raw:RawMap) =
           None
     )
     |> Seq.toList
+    |> List.map(fun gameObject ->
+      match gameObject with
+      | GameObject.Enemy e ->
+        // We set the path target here for any enemies on a path - its easier to do here when we have all the base data
+        // we need than to juggle in the initial construction
+        (
+          match e.State with
+          | EnemyStateType.Path _ ->
+            let deltaX, deltaY = e.Direction.ToDelta()
+            let posX, posY = e.BasicGameObject.MapPosition
+            let targetX, targetY = posX + deltaX, posY + deltaY
+            { e with State = EnemyStateType.Path { TargetX = targetX ; TargetY = targetY ; ChaseOnTargetReached = false } }
+          | _ -> e
+        )
+        |> GameObject.Enemy
+      | _ -> gameObject
+    )
   
   let flipHorizontal (x,y) =
     raw.MapSize - 1 - x, y
@@ -388,12 +529,13 @@ let loadLevelFromRawMap (raw:RawMap) =
   // due to our renderer we have to flip the x co-ordinate
   let map = patchedPlane0 |> List.map List.rev
   let doors = doors |> List.map(fun door -> { door with MapPosition = door.MapPosition |> flipHorizontal })
-  let areas, updatedDoors = calculateAreasFromMap map doors
+  let areas, updatedDoors, numberOfAreas = calculateAreasFromMap map doors
     
   { Width = raw.MapSize
     Height = raw.MapSize
     Map = map
     Areas = areas |> FSharp.Collections.Array.map FSharp.Collections.Array.toList |> FSharp.Collections.Array.toList
+    NumberOfAreas = numberOfAreas+1
     PlayerStartingPosition = playerStartingPosition //|> reverseCamera
     GameObjects = gameObjects
     // This will only include the nearest enemy as a game object - useful for testing sometimes
@@ -403,6 +545,22 @@ let loadLevelFromRawMap (raw:RawMap) =
       |> List.filter(fun go -> match go with GameObject.Enemy _ -> true | _ -> false) |> List.take 1*)
     Doors = updatedDoors
   }
+  
+let createAmmo playerPosition (mapX,mapY) =
+  let position = { vX = float mapX + 0.5 ; vY = float mapY + 0.5 }
+  { Position = position
+    SpriteIndex = 0x31 - 21
+    PlayerRelativePosition =  position - playerPosition
+    UnsquaredDistanceFromPlayer = position.UnsquaredDistanceFrom playerPosition
+    CollidesWithBullets = false
+    Pickupable = true
+    HitpointsRestored = 0<hp>
+    Score = 0<points>
+    AmmoRestored = 4<bullets>
+    LivesRestored = 0<life>
+    Blocking = false
+  }
+  |> GameObject.Static
   
 let getWeapon (sprites:Texture array) weaponType scaleSprite =
   //let toSpriteSet sequence = sequence |> Seq.map (fun i -> Graphics.canvasFromTexture sprites.[i]) |> Seq.toList
@@ -417,24 +575,36 @@ let getWeapon (sprites:Texture array) weaponType scaleSprite =
       CurrentFrame = 0
       Damage = 25
       AutoRepeat = false
+      RequiresAmmunition = false
+      StatusBarImageIndex = 0
+      WeaponType = WeaponType.Knife
     }
   | WeaponType.Pistol ->
     { Sprites = ({421..425} |> toSpriteSet) @ ({424..422} |> toSpriteSet)
       CurrentFrame = 0
       Damage = 25
       AutoRepeat = false
+      RequiresAmmunition = true
+      StatusBarImageIndex = 1
+      WeaponType = WeaponType.Pistol
     }
   | WeaponType.MachineGun ->
     { Sprites = {426..430} |> toSpriteSet
       CurrentFrame = 0
       Damage = 25
       AutoRepeat = true
+      RequiresAmmunition = true
+      StatusBarImageIndex = 2
+      WeaponType = WeaponType.MachineGun
     }
   | WeaponType.ChainGun ->
     { Sprites = {431..435} |> toSpriteSet
       CurrentFrame = 0
       Damage = 25
       AutoRepeat = true
+      RequiresAmmunition = true
+      StatusBarImageIndex = 3
+      WeaponType = WeaponType.ChainGun
     }
 
 (* | WeaponType.Knife -> { SpriteIndex = 416 ; Ammunition = System.Int32.MaxValue ; CurrentFrame = 0 ; Damage = 25 }

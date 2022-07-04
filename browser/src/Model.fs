@@ -5,13 +5,22 @@ open App.PlatformModel
 [<Measure>] type hp
 [<Measure>] type points
 [<Measure>] type ms
+[<Measure>] type life
 [<Measure>] type radians
 [<Measure>] type degrees
+[<Measure>] type bullets
 
+[<RequireQualifiedAccess>]
+type DifficultyLevel =
+  | CanIPlayDaddy
+  | DontHurtMe
+  | BringEmOn
+  | IAmDeathIncarnate
 
 type WallRenderingResult =
   { ZIndexes: float list
     WallInFrontOfPlayer: int*int // x,y
+    IsDoorInFrontOfPlayer: bool
     DistanceToWallInFrontOfPlayer: float
     SpriteInFrontOfPlayerIndexOption: int option
   }
@@ -138,24 +147,56 @@ type Wall =
   { NorthSouthTextureIndex: int
     EastWestTextureIndex: int
   }
+  member this.IsExit =
+    this.NorthSouthTextureIndex = 40 || this.EastWestTextureIndex = 40 ||
+    this.NorthSouthTextureIndex = 41 || this.EastWestTextureIndex = 41
   
 [<RequireQualifiedAccess>]
 type SoundEffect =
-  | PlayerPistol
-  | EnemyDeathAaarrrg
-  | EnemyDeathAieeeeLow
-  | EnemyDeathAieeeeHigh
-  | DoorOpen
+  | UttGuards
+  | Dog
   | DoorClose
-  | GuardGunshot
+  | DoorOpen
+  | PlayerMachineGun
+  | PlayerPistol
+  | PlayerChainGun
+  | Hoofafo
+  | GutenTag
+  | Mutti
+  | GuardChainGun
+  | GuardMachineGun
+  | Aarggh
+  | Aieeee
+  | Ooof
+  | SecretDoor
+  | MeinLeben
+  | GuardPistol
+  | BubblesQuestion
+  | VictoryYeah
+  | Tick
   static member All =
-    [ SoundEffect.PlayerPistol
-      SoundEffect.EnemyDeathAaarrrg
-      SoundEffect.EnemyDeathAieeeeLow
-      SoundEffect.EnemyDeathAieeeeHigh
-      SoundEffect.DoorOpen
+    [
+      SoundEffect.UttGuards
+      SoundEffect.Dog
       SoundEffect.DoorClose
-      SoundEffect.GuardGunshot
+      SoundEffect.DoorOpen
+      SoundEffect.PlayerMachineGun
+      SoundEffect.PlayerPistol
+      SoundEffect.PlayerChainGun
+      SoundEffect.Hoofafo
+      SoundEffect.GutenTag
+      SoundEffect.Mutti
+      SoundEffect.GuardChainGun
+      SoundEffect.GuardMachineGun
+      SoundEffect.Aarggh
+      SoundEffect.Aieeee
+      SoundEffect.Ooof
+      SoundEffect.SecretDoor
+      SoundEffect.MeinLeben
+      SoundEffect.GuardPistol
+      SoundEffect.BubblesQuestion
+      SoundEffect.VictoryYeah
+      SoundEffect.Tick
     ]
   
 [<RequireQualifiedAccess>]
@@ -176,7 +217,7 @@ type DoorState =
     Status: DoorStatus
     Offset: float
     TimeRemainingInAnimationState: float<ms>
-    MapPosition: (int*int)
+    MapPosition: int*int
     AreaOne: int
     AreaTwo: int
   }
@@ -203,13 +244,20 @@ type EnemyType =
   | Otto
   | Ghost
   
+type PathState =
+  { TargetX: int
+    TargetY: int
+    ChaseOnTargetReached: bool
+  }
+  static member Empty = { TargetX = -1 ; TargetY = -1 ; ChaseOnTargetReached = false }
+  
 [<RequireQualifiedAccess>]
 type EnemyStateType =
   | Standing
   | Ambushing
   | Attack
-  | Path
-  | Pain
+  | Path of PathState
+  | Pain of EnemyStateType
   | Shoot
   | Chase of int*int // co-ordinates we are moving to as part of the chase
   | Die
@@ -221,6 +269,12 @@ type BasicGameObject =
     UnsquaredDistanceFromPlayer: float
     SpriteIndex: int
     CollidesWithBullets: bool
+    Pickupable: bool
+    HitpointsRestored: int<hp>
+    AmmoRestored: int<bullets>
+    LivesRestored: int<life>
+    Score: int<points>
+    Blocking: bool
   }
   member this.MapPosition = (int this.Position.vX),(int this.Position.vY)
 
@@ -240,6 +294,11 @@ type Enemy =
     State: EnemyStateType
     IsFirstAttack: bool // shoud start at true and be set to false after first attack
     FireAtPlayerRequired: bool // set to true during the update and AI loop if the enemy has fired at the player that frame
+    MoveToChaseRequired: bool // set to true during the update loop and the AI loop picks up on it at state change to move to chase 
+    HitPoints: int<hp>
+    HurtSpriteIndex: int
+    PatrolSpeed: float
+    ChaseSpeed: float
   }
   member this.DirectionVector = this.Direction.ToVector()
   member this.StationarySpriteBlockIndex = this.BasicGameObject.SpriteIndex
@@ -250,14 +309,16 @@ type Enemy =
     match this.State with
     | EnemyStateType.Standing -> this.StationarySpriteBlockIndex
     | EnemyStateType.Chase _
-    | EnemyStateType.Path -> this.MovementSpriteBlockIndex this.CurrentAnimationFrame
+    | EnemyStateType.Path _ -> this.MovementSpriteBlockIndex this.CurrentAnimationFrame
     | EnemyStateType.Attack -> this.AttackSpriteIndexes.[this.CurrentAnimationFrame]
+    | EnemyStateType.Pain _ -> this.HurtSpriteIndex
     | _ -> this.BasicGameObject.SpriteIndex
   static member AnimationTimeForState state =
     match state with
     | EnemyStateType.Attack -> 200.<ms>
     | EnemyStateType.Chase _ -> 100.<ms>
-    | EnemyStateType.Path -> 200.<ms>
+    | EnemyStateType.Path _ -> 300.<ms>
+    | EnemyStateType.Pain _ -> 100.<ms>
     | EnemyStateType.Dead | EnemyStateType.Die -> 100.<ms>
     | _ -> 0.<ms>
   member this.SpriteIndexForAnimationFrame =
@@ -293,40 +354,53 @@ type PlayerWeapon =
     CurrentFrame: int
     Damage: int
     AutoRepeat: bool
+    RequiresAmmunition: bool
+    StatusBarImageIndex: int
+    WeaponType: WeaponType
   }
   member x.AnimationFrames = x.Sprites.Length
   member x.CurrentSprite = x.Sprites.[x.CurrentFrame]
   
 [<RequireQualifiedAccess>]
 type GameObject =
-  | Treasure of BasicGameObject
+  | Static of BasicGameObject
   | Enemy of Enemy
   member x.BasicGameObject =
-    match x with | GameObject.Treasure t -> t | GameObject.Enemy e -> e.BasicGameObject
+    match x with
+    | GameObject.Static t -> t
+    | GameObject.Enemy e -> e.BasicGameObject
   member x.UpdateBasicGameObject go =
     match x with
-    | GameObject.Treasure _ -> GameObject.Treasure go
+    | GameObject.Static _ -> GameObject.Static go
     | GameObject.Enemy e -> { e with BasicGameObject = go } |> GameObject.Enemy
   
 type ControlState =
-  | None          = 0b00000000
-  | Forward       = 0b00000001
-  | TurningLeft   = 0b00000010
-  | TurningRight  = 0b00000100
-  | StrafingLeft  = 0b00001000
-  | StrafingRight = 0b00010000
-  | Backward      = 0b00100000
-  | Fire          = 0b01000000
-  | Action        = 0b10000000
+  | None          = 0b000000000000
+  | Forward       = 0b000000000001
+  | TurningLeft   = 0b000000000010
+  | TurningRight  = 0b000000000100
+  | StrafingLeft  = 0b000000001000
+  | StrafingRight = 0b000000010000
+  | Backward      = 0b000000100000
+  | Fire          = 0b000001000000
+  | Action        = 0b000010000000
+  | Weapon0       = 0b000100000000
+  | Weapon1       = 0b001000000000
+  | Weapon2       = 0b010000000000
+  | Weapon3       = 0b100000000000
 
 type Player =
   { Score: int<points>
+    Lives: int<life>
     Health: int<hp>
     Radius: float // how much room does the player take up on the map
     CurrentWeaponIndex: int
-    Ammunition: int
+    Ammunition: int<bullets>
     Weapons: PlayerWeapon list
+    CurrentFaceIndex: int
+    TimeToFaceChangeMs: float<ms>
   }
+  member this.CurrentWeapon = this.Weapons.[this.CurrentWeaponIndex]
 
 type Camera =
   { Position: Vector2D
@@ -355,6 +429,7 @@ type WolfensteinMap =
     Height: int
     Map: Cell list list
     Areas: int list list
+    NumberOfAreas: int
     GameObjects: GameObject list
     PlayerStartingPosition: Camera
     // we store door state outside of the map and store an index to them in the map
@@ -373,30 +448,55 @@ type OverlayAnimation =
     FrameLength: float<ms>
     TimeRemainingUntilNextFrame: float<ms>
   }
-  static member Blood maxOpacity =
+  static member WithColor red green blue maxOpacity =
     let maxOpacity = max maxOpacity 0.2
     let totalAnimationTime = 75.<ms>
     let totalFrames = 10.
     let opacityDelta = maxOpacity / (totalFrames / 2.) // we go in and out     
     let frameLength = totalAnimationTime / totalFrames
-    { Red = 0xFFuy//0x8Cuy
-      Green = 0uy
-      Blue = 0uy
+    { Red = red
+      Green = green
+      Blue = blue
       Opacity = opacityDelta
       OpacityDelta = opacityDelta
       MaxOpacity = maxOpacity
       FrameLength = frameLength
       TimeRemainingUntilNextFrame = frameLength
     }
+  static member Blood maxOpacity = OverlayAnimation.WithColor 0xFFuy 0uy 0uy maxOpacity    
+  static member Pickup = OverlayAnimation.WithColor 0xFFuy 0xD7uy 0uy 0.4
 
 [<RequireQualifiedAccess>]
 type ViewportFilter =
   | None
   | Overlay of OverlayAnimation  
 
+type CompositeArea =
+  { Area: int
+    ConnectedTo: int Set
+  }
+
+[<RequireQualifiedAccess>]
+type PixelDissolverState =
+  | Forwards
+  | Backwards
+  | Transitioning
+  | Stopped
+type PixelDissolver =
+  { RemainingPixels: (int*int) list
+    DrawnPixels: (int*int) list
+    PixelSize: float
+    PauseTimeRemaining: float<ms>
+    DissolverState: PixelDissolverState
+  }
+  member this.TotalPixels = this.RemainingPixels.Length + this.DrawnPixels.Length
+  member this.IsComplete = this.DissolverState = PixelDissolverState.Backwards && this.DrawnPixels.Length = 0
+
 type Game =
-  { Map: Cell list list
+  { Level: int
+    Map: Cell list list
     Areas: int list list
+    CompositeAreas: CompositeArea list
     GameObjects: GameObject list
     Player: Player
     Camera: Camera
@@ -405,6 +505,8 @@ type Game =
     TimeToNextWeaponFrame: float<ms> option
     Doors: DoorState list
     ViewportFilter: ViewportFilter
+    PixelDissolver: PixelDissolver option
+    ResetLevel: Game -> Player -> Game
   }
   member this.PlayerMapPosition = (int this.Camera.Position.vX),(int this.Camera.Position.vY)
   member this.IsPlayerRunning = (this.ControlState &&& ControlState.Forward) = ControlState.Forward
@@ -415,6 +517,8 @@ type StatusBarGraphics =
     Dead: Texture
     GrinFace: Texture
     GreyFace: Texture
+    Font: Texture array
+    Weapons: Texture array
   }
   
 let textureWidth = 64.
