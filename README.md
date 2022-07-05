@@ -1,5 +1,7 @@
 # F# / Fable Wolfenstein
 
+Try it in a browser here: https://www.jamesdrandall.com/wolf3d/
+
 A work in progress F# port of Wolfenstein 3D. Wolfenstein was a formative experience for me! I was big into my PC gaming and the shareware scene when it came out and I remember not knowing anything about it but downloading it from a BBS, installing it, and then excitedly running round the house proclaiming "THIS CHANGES EVERYTHING" over and over again. No one cared.
 
 ![Screenshot](README_screenshot.png)

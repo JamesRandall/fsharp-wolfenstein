@@ -11,7 +11,7 @@ let loadingImage =
   Image.Create(
     textureWidth,
     textureHeight,
-    src = "/assets/loadingScreen.png"
+    src = "assets/loadingScreen.png"
   )
 let mutable isShowingLoadingScreen = true
 let drawImage _ =
