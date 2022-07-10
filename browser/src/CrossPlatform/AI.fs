@@ -268,12 +268,27 @@ let getNextState canSeePlayer game enemy =
     else
       enemy
   | _ -> enemy
+
+// This conversion required because FSharp do not play
+// along with NativeAOT inside interpolated strings + enums.
+// Be explicit about how to display strings.
+let getStateString state =
+  match state with
+  | EnemyStateType.Standing -> "Standing"
+  | EnemyStateType.Ambushing -> "Ambushing"
+  | EnemyStateType.Attack -> "Attack"
+  | EnemyStateType.Path -> "Path"
+  | EnemyStateType.Pain -> "Pain"
+  | EnemyStateType.Shoot -> "Shoot"
+  | (EnemyStateType.Chase (x,y)) -> $"Chase ({x},{y})"
+  | EnemyStateType.Die -> "Die"
+  | EnemyStateType.Dead -> "Dead"
     
 let preProcess canSeePlayer (enemy,game) =
   // preprocess looks for state changes based on the current game world state
   let newEnemy = enemy |> getNextState canSeePlayer game
   //if newEnemy.State <> enemy.State then
-  //  Utils.log $"Enemy at {enemy.BasicGameObject.Position.vX}, {enemy.BasicGameObject.Position.vY} moving from {enemy.State} to {newEnemy.State}"
+  //  Utils.log $"Enemy at {enemy.BasicGameObject.Position.vX}, {enemy.BasicGameObject.Position.vY} moving from {getStateString enemy.State} to {getStateString newEnemy.State}"
   (newEnemy,game)
     
 // this is loosely based on T_Shoot in WL_ACT2.C

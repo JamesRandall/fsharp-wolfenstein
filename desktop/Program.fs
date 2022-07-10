@@ -267,6 +267,8 @@ let main _ =
   let mutable options = WindowOptions.Default
   options.Size <- Vector2D<int>(int(float screenWidth * zoom),int (float screenHeight * zoom))
   options.Title <- "F# Wolfenstein"
+  Silk.NET.Input.Sdl.SdlInput.RegisterPlatform()
+  Silk.NET.Input.Glfw.GlfwInput.RegisterPlatform()
   let window = Window.Create(options)
   window.add_Load (load window)
   window.add_Render render

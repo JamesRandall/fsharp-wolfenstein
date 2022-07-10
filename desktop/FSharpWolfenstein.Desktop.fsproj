@@ -2,8 +2,12 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
+        <!-- Set target framework to .NET 7 to publish with NativeAOT -->
         <TargetFramework>net6.0</TargetFramework>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <PublishAot Condition="'$(TargetFramework)' == 'net7.0'">true</PublishAot>
+        <IlcTrimMetadata>true</IlcTrimMetadata>
+        <TrimmerDefaultAction>link</TrimmerDefaultAction>
         <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
     </PropertyGroup>
 
@@ -368,5 +372,9 @@
       <PackageReference Include="Silk.NET.Windowing" Version="2.15.0" />
       <PackageReference Include="SixLabors.ImageSharp" Version="1.0.4" />
       <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta13" />
+      <PackageReference Include="Microsoft.Extensions.DependencyModel" Version="6.0.0" />
     </ItemGroup>
+  <ItemGroup>
+    <RdXmlFile Include="*.rd.xml" />
+  </ItemGroup>
 </Project>
